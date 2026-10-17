@@ -63,13 +63,38 @@ def busy_cores(window_s=1.0):
     return (b1 - b0) / TICKS_PER_S / window_s
 
 
-def wait_quiet(threshold_cores=0.3, window_s=1.0, max_wait_s=60.0):
-    """Block until busy CPU over `window_s` is below `threshold_cores`. Returns (busy_cores, waited_s)."""
+# Scheduled macOS malware scans (XProtect / XProtectRemediator*, launched every 6 h by launchd as
+# com.apple.XProtect.daemon.scan) can take a core for most of an hour. Don't start runs while they're active.
+
+
+def scanner_running():
+    """True while an XProtect remediator scan is active (an XProtectRemediator* process exists, or any
+    XProtect* process is using >20% CPU). Idle resident XProtect services don't count."""
+    try:
+        out = subprocess.run(["ps", "-A", "-o", "%cpu=,comm="], capture_output=True, text=True).stdout
+    except Exception:
+        return False
+    for l in out.splitlines():
+        p = l.strip().split(None, 1)
+        if len(p) != 2:
+            continue
+        name = os.path.basename(p[1])
+        if name.startswith("XProtectRemediator") or (name.lower().startswith("xprotect") and float(p[0]) > 20):
+            return True
+    return False
+
+
+def wait_quiet(threshold_cores=0.3, window_s=1.0, max_wait_s=60.0, max_scan_wait_s=3600.0):
+    """Block until busy CPU over `window_s` is below `threshold_cores`. Returns (busy_cores, waited_s).
+    First waits (up to max_scan_wait_s) for a running XProtect scan to finish."""
     t0 = time.time()
+    while scanner_running() and time.time() - t0 < max_scan_wait_s:
+        time.sleep(15)
+    t1 = time.time()
     while True:
         b = busy_cores(window_s)
         waited = time.time() - t0
-        if b < threshold_cores or waited >= max_wait_s:
+        if b < threshold_cores or time.time() - t1 >= max_wait_s:
             return b, waited
 
 
