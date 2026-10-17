@@ -9,17 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
 /*@STYLE*/
-/* PR report: left navigation + collapsible sections */
-.layout { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 36px; }
-nav.toc { position: sticky; top: 0; align-self: start; max-height: 100vh; overflow-y: auto; padding: 28px 0 16px; }
-nav.toc .eyebrow { margin-bottom: 10px; }
-nav.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; counter-reset: s; }
-nav.toc li { counter-increment: s; }
-nav.toc a { display: block; padding: 4px 8px; border-radius: 5px; color: var(--ink2); text-decoration: none; font-size: .9rem; border-left: 2px solid transparent; }
-nav.toc ol a::before { content: counter(s) ". "; color: var(--muted); font-family: var(--f-mono); font-size: .8rem; }
-nav.toc a:hover { color: var(--ink); background: var(--band); }
-nav.toc a.current { color: var(--ink); border-left-color: var(--accent); background: var(--band); }
-nav.toc .ext { margin-top: 16px; display: flex; flex-direction: column; gap: 4px; font-size: .82rem; }
+/* PR report: <details> sections (navigation styles are shared with the other reports) */
 nav.toc .ext button { align-self: flex-start; }
 main.wrap { max-width: none; margin: 0; }
 details.sec { border-top: 1px solid var(--grid); padding-top: 14px; scroll-margin-top: 12px; }
@@ -34,11 +24,7 @@ details.sub > summary { cursor: pointer; color: var(--ink2); font-weight: 500; }
 details.sub > .prose { margin-top: 8px; }
 pre.diff { margin: 0; padding: 12px 14px; overflow-x: auto; background: var(--surface); border: 1px solid var(--grid); border-radius: 6px; font: .8rem/1.5 var(--f-mono); }
 pre.diff .add { color: var(--good); } pre.diff .del { color: var(--bad); } pre.diff .hunk { color: var(--muted); }
-@media (max-width: 900px) {
-  .layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  nav.toc { position: static; max-height: none; padding-bottom: 0; }
-  details.sec > .body { padding-left: 0; }
-}
+@media (max-width: 900px) { details.sec > .body { padding-left: 0; } }
 </style>
 </head>
 <body>

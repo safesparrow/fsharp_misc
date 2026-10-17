@@ -111,10 +111,41 @@ button:focus-visible, select:focus-visible, .chip:focus-within { outline: 2px so
 #tip b { font-weight: 600; }
 .empty { color: var(--muted); padding: 16px; }
 @media (max-width: 520px) { .row > label.lbl { min-width: 0; width: 100%; } h1 { font-size: 1.4rem; } }
+/* left navigation + collapsible sections (all report pages) */
+.layout { max-width: 1320px; margin: 0 auto; display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 36px; }
+.layout > .wrap { max-width: none; margin: 0; min-width: 0; }
+nav.toc { position: sticky; top: 0; align-self: start; max-height: 100vh; overflow-y: auto; padding: 28px 0 16px; }
+nav.toc .eyebrow { margin-bottom: 10px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; counter-reset: s; }
+nav.toc li { counter-increment: s; }
+nav.toc a { display: block; padding: 4px 8px; border-radius: 5px; color: var(--ink2); text-decoration: none; font-size: .9rem; border-left: 2px solid transparent; }
+nav.toc ol a::before { content: counter(s) ". "; color: var(--muted); font-family: var(--f-mono); font-size: .8rem; }
+nav.toc a:hover { color: var(--ink); background: var(--band); }
+nav.toc a.current { color: var(--ink); border-left-color: var(--accent); background: var(--band); }
+nav.toc .ext { margin-top: 16px; display: flex; flex-direction: column; gap: 4px; font-size: .82rem; }
+.findings-wrap { display: contents; }
+section.sec { scroll-margin-top: 12px; }
+section.sec > h2.sec-h { cursor: pointer; display: flex; align-items: baseline; gap: 10px; user-select: none; }
+section.sec > h2.sec-h::before { content: "▸"; color: var(--muted); font-size: .9rem; transition: transform .15s; display: inline-block; width: 1em; transform: rotate(90deg); }
+section.sec.collapsed > h2.sec-h::before { transform: none; }
+section.sec > h2.sec-h .hint { color: var(--muted); font-size: .8rem; font-weight: 400; display: none; }
+section.sec.collapsed > h2.sec-h .hint { display: inline; }
+section.sec.collapsed > :not(h2) { display: none !important; }
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  nav.toc { position: static; max-height: none; padding-bottom: 0; }
+}
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
+<div class="layout">
+<nav class="toc" aria-label="Sections">
+  <div class="eyebrow">Contents</div>
+  <ol id="toc"></ol>
+  <div class="ext" id="tocExt"><span><button type="button" class="link" id="openAll">expand all</button><button type="button" class="link" id="closeAll">collapse all</button></span>
+    <a href="pr/report.html">Short report (issue/PR)</a><a href="phase3/report.html">Other runtime settings</a></div>
+</nav>
 <div class="wrap">
   <header>
     <div class="eyebrow">dotnet/fsharp · performance</div>
@@ -122,9 +153,9 @@ button:focus-visible, select:focus-visible, .chip:focus-within { outline: 2px so
     <div class="sub" id="subtitle">Loading data…</div>
   </header>
 
-  <section class="prose" id="findings" hidden></section>
+  <div class="findings-wrap" id="findings"></div>
 
-  <section style="display:flex;flex-direction:column;gap:14px">
+  <section class="sec" id="setup" style="display:flex;flex-direction:column;gap:14px">
     <h2>Setup</h2>
     <div class="cols">
       <div><h3 style="margin-bottom:8px">Hardware</h3><dl class="kv" id="hw"></dl></div>
@@ -151,7 +182,7 @@ button:focus-visible, select:focus-visible, .chip:focus-within { outline: 2px so
     <div class="tablebox"><table id="cfgtable"></table></div>
   </section>
 
-  <section style="display:flex;flex-direction:column;gap:14px" id="sdkSection" hidden>
+  <section class="sec" style="display:flex;flex-direction:column;gap:14px" id="sdkSection" hidden>
     <h2>Do the flags behave differently on SDK 10 and SDK 11?</h2>
     <div class="prose">
       <ul>
@@ -169,7 +200,7 @@ button:focus-visible, select:focus-visible, .chip:focus-within { outline: 2px so
   </section>
 
   <!-- @grid-html-begin -->
-  <section style="display:flex;flex-direction:column;gap:16px" id="gridSection">
+  <section class="sec" style="display:flex;flex-direction:column;gap:16px" id="gridSection">
     <h2>Metric grid</h2>
     <div class="prose">
       <ul>
@@ -209,7 +240,7 @@ button:focus-visible, select:focus-visible, .chip:focus-within { outline: 2px so
   </section>
   <!-- @grid-html-end -->
 
-  <section style="display:flex;flex-direction:column;gap:16px" id="explorer">
+  <section class="sec" style="display:flex;flex-direction:column;gap:16px" id="explorer">
     <h2>Results explorer</h2>
     <div class="bar" role="region" aria-label="Filters">
       <div class="row">
@@ -248,6 +279,7 @@ button:focus-visible, select:focus-visible, .chip:focus-within { outline: 2px so
     <div class="prose" id="quality"></div>
     <div class="tablebox"><table id="ovTable"></table></div>
   </section>
+</div>
 </div>
 <div id="tip" role="tooltip"></div>
 
@@ -424,6 +456,45 @@ function stackedChart(box, title, sub, rows, segs, unit, segColor) {
   });
   box.appendChild(svg);
 }
+// Findings markdown: every "## Title" part becomes its own collapsible, navigable section.
+function renderFindings(box, src) {
+  if (!src) return;
+  const parts = []; let cur = null;
+  for (const l of src.split("\n")) {
+    const m = l.match(/^##\s+(.*)/);
+    if (m) { cur = { title: m[1], lines: [] }; parts.push(cur); } else { if (!cur) { cur = { title: "Findings", lines: [] }; parts.push(cur); } cur.lines.push(l); }
+  }
+  const slug = (t) => "f-" + t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  box.innerHTML = parts.map((p) => `<section class="sec prose" id="${slug(p.title)}"><h2>${esc(p.title)}</h2>${md(p.lines.join("\n"))}</section>`).join("");
+}
+// Left navigation built from section.sec > h2; clicking a heading collapses its section; links to an id open the section.
+function initNav() {
+  const secs = [...document.querySelectorAll("section.sec")].filter((s) => !s.hidden && s.querySelector(":scope > h2"));
+  $("toc").innerHTML = secs.map((s) => `<li><a href="#${s.id}" data-id="${s.id}">${esc(s.querySelector(":scope > h2").textContent)}</a></li>`).join("");
+  for (const s of secs) {
+    const h = s.querySelector(":scope > h2");
+    h.classList.add("sec-h"); h.tabIndex = 0; h.setAttribute("role", "button");
+    h.insertAdjacentHTML("beforeend", '<span class="hint">click to expand</span>');
+    const toggle = () => { s.classList.toggle("collapsed"); h.setAttribute("aria-expanded", !s.classList.contains("collapsed")); };
+    h.setAttribute("aria-expanded", !s.classList.contains("collapsed"));
+    h.addEventListener("click", toggle);
+    h.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+  }
+  const mark = (id) => { for (const a of document.querySelectorAll("nav.toc a[data-id]")) a.classList.toggle("current", a.dataset.id === id); };
+  const open = (id, scroll) => {
+    const el = id && document.getElementById(id); if (!el) return;
+    const s = el.closest("section.sec");
+    if (s) { s.classList.remove("collapsed"); s.querySelector(":scope > h2").setAttribute("aria-expanded", true); mark(s.id); }
+    if (scroll) el.scrollIntoView({ block: "start" });
+  };
+  document.addEventListener("click", (e) => { const a = e.target.closest('a[href^="#"]'); if (a) open(decodeURIComponent(a.getAttribute("href").slice(1)), false); });
+  addEventListener("hashchange", () => open(decodeURIComponent(location.hash.slice(1)), true));
+  if ($("openAll")) $("openAll").onclick = () => secs.forEach((s) => s.classList.remove("collapsed"));
+  if ($("closeAll")) $("closeAll").onclick = () => secs.forEach((s) => s.classList.add("collapsed"));
+  const io = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) mark(e.target.id); }, { rootMargin: "0px 0px -70% 0px" });
+  secs.forEach((s) => io.observe(s));
+  if (location.hash) open(decodeURIComponent(location.hash.slice(1)), true);
+}
 /* @shared-end */
 const subtitleBase = () => {
   const hw = Object.fromEntries(D.meta.hardware);
@@ -435,7 +506,7 @@ function renderStatic() {
   $("title").textContent = D.meta.title;
   $("subtitle").innerHTML = `Generated ${esc(D.meta.generated)} · harness <code>${esc(D.meta.harness_commit)}</code> · ` +
     `${D.projects.length} compilations · data: <a href="data/summary.json">data/summary.json</a>`;
-  if (D.findings_md) { $("findings").innerHTML = md(D.findings_md); $("findings").hidden = false; }
+  renderFindings($("findings"), D.findings_md);
   $("hw").innerHTML = D.meta.hardware.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
   $("sw").innerHTML = D.meta.software.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
   $("cfgtable").innerHTML = "<tr><th>Config</th><th>What it is</th><th>Environment</th></tr>" + D.meta.configs.map((c) =>
@@ -849,7 +920,7 @@ function renderAll() {
   renderSdk(); renderGrid();
   renderChips(); tiles(); forest(); phases(); tiers(); strips(); numTable();
 }
-renderStatic(); renderControls(); quality(); renderAll();
+renderStatic(); renderControls(); quality(); renderAll(); initNav();
 // Re-render on theme change (colors are read from tokens at draw time).
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
 new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
