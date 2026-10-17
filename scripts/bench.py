@@ -15,6 +15,9 @@ seq = --parallelcompilation- (graph checking, parallel optimization and IL gen o
 import argparse, json, os, random, re, shutil, subprocess, sys, time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import hostmon  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 
 # Response-file options that name compiler OUTPUTS. They are redirected to a scratch dir
@@ -70,10 +73,14 @@ def parse_times_csv(path: Path):
         return None, None
     hdr = rows[0]
     iN, iD, iId, iP = hdr.index("Name"), hdr.index("Duration(s)"), hdr.index("Id"), hdr.index("ParentId")
-    root_ids = {r[iId] for r in rows[1:] if len(r) > iP and r[iN] == "FSC compilation"}
+    # The root "FSC compilation" row is written last and is sometimes truncated (fsc exits before
+    # its async CSV writer flushes), so don't rely on it: a top-level phase is any activity whose
+    # parent is not itself a row in the file.
+    ids = {r[iId] for r in rows[1:] if len(r) > iP and r[iN] != "FSC compilation"}
+    root_ids = {r[iP] for r in rows[1:] if len(r) > iP and r[iN] != "FSC compilation" and r[iP] not in ids}
     phases, acts = {}, {}
     for r in rows[1:]:
-        if len(r) <= iP:
+        if len(r) <= iP or r[iN] == "FSC compilation":
             continue
         try:
             d = float(r[iD])
@@ -112,6 +119,11 @@ def main():
     ap.add_argument("--no-hook", action="store_true", help="don't load the GC/JIT stats startup hook")
     ap.add_argument("--no-times", action="store_true", help="don't pass --times:<csv> to fsc")
     ap.add_argument("--tag", default="", help="free-form label stored with each run")
+    ap.add_argument("--quiet-threshold", type=float, default=1.0,
+                    help="before each run, wait until host busy CPU < this many cores (1 s window)")
+    ap.add_argument("--quiet-max-wait", type=float, default=60.0)
+    ap.add_argument("--flag-foreign-cores", type=float, default=1.0,
+                    help="flag a run if foreign (non-fsc) CPU averaged more than this many cores")
     a = ap.parse_args()
 
     cfgs = json.loads(Path(a.configs).read_text())
@@ -185,15 +197,25 @@ def main():
                         env["FSCPERF_STATS_FILE"] = str(statsf)
                     dotnet = str(dotnet)
                     logp = rsp.parent / "last.log"
-                    with logp.open("w") as log:
+                    top = hostmon.top_procs(3, exclude_pids={os.getpid()}) if not is_warm else []
+                    pre_busy, waited = hostmon.wait_quiet(a.quiet_threshold, 1.0, a.quiet_max_wait)
+                    with logp.open("w") as log, hostmon.RunMonitor() as mon:
                         r = run_once(dotnet, str(layout / "fsc.dll"), rsp, cmd["cwd"], env, log)
+                    host = mon.finish(r["cpu_s"])
+                    host.update(pre_busy_cores=pre_busy, quiet_wait_s=waited, top_before=top,
+                                loadavg=os.getloadavg())
+                    r["host"] = host
+                    r["host_flag"] = bool(host["foreign_cores_avg"] > a.flag_foreign_cores or host["swapouts"] > 0
+                                          or pre_busy >= a.quiet_threshold or host["compressions"] > 5000)
                     if r["rc"] != 0:
                         print(f"FAIL {pid} {c['id']} {v} rc={r['rc']} log={logp}", flush=True)
                         print(logp.read_text()[-3000:], flush=True)
                         sys.exit(2)
                     tag = "warm" if is_warm else f"{it - a.warmup + 1}/{a.runs}"
                     print(f"{pid:55s} {c['id']:12s} {v} {tag:6s} wall={r['wall_s']:7.2f}s "
-                          f"cpu={r['cpu_s']:7.2f}s rss={r['maxrss_mb']:6.0f}MB", flush=True)
+                          f"cpu={r['cpu_s']:7.2f}s rss={r['maxrss_mb']:6.0f}MB "
+                          f"foreign={host['foreign_cores_avg']:.2f}c pre={pre_busy:.2f}c"
+                          f"{' FLAG' if r['host_flag'] else ''}", flush=True)
                     if is_warm:
                         continue
                     if statsf.exists():

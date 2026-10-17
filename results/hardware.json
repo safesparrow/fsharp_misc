@@ -1,0 +1,46 @@
+{
+ "hardware": [
+  [
+   "Machine",
+   "MacBook Pro (Mac15,6, model number MRX33B/A)"
+  ],
+  [
+   "Chip",
+   "Apple M3 Pro"
+  ],
+  [
+   "CPU cores",
+   "11 = 5 performance + 6 efficiency (no SMT; 11 logical)"
+  ],
+  [
+   "Caches",
+   "P-cluster L2 16 MB, E-cluster L2 4 MB, L1d 128 KB (P) / 64 KB (E), cache line 128 B"
+  ],
+  [
+   "Memory",
+   "18 GB unified (LPDDR5)"
+  ],
+  [
+   "Storage",
+   "internal Apple SSD (APFS)"
+  ],
+  [
+   "Power",
+   "AC Power; Low Power Mode off"
+  ],
+  [
+   "Thermal",
+   "no thermal or CPU-power throttling warnings recorded (pmset -g therm)"
+  ]
+ ],
+ "software": [
+  [
+   "OS",
+   "macOS 27.0.1 (26A434), kernel Darwin 27.0.0"
+  ],
+  [
+   "Firmware",
+   "20457.1.29"
+  ]
+ ]
+}
