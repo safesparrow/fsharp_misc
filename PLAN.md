@@ -104,10 +104,30 @@ under each JIT config, on wall and CPU. Update both reports.
 - crossgen2 output with and without `-O` is **byte-identical** (FCS, FSharp.Core). R2R is optimized by default.
 - Layout vs shipped SDK 11 RC1 sizes: FCS 48.6 MB vs 49.2 MB, FSharp.Core 5.79 MB vs 5.67 MB (different commits,
   SDK is signed). So it's the same kind of binary.
-- `FSharp.Compiler.Service.slnx` builds set `BUILDING_USING_DOTNET=true`. They compile with the **SDK's** fsc,
-  use the FSharp.Core *package*, and write to `artifacts/{bin,obj}/<proj>/Release/`, which is shared with build.sh output.
+- `FSharp.Compiler.Service.slnx` builds set `BUILDING_USING_DOTNET=true`. They compile with the repo's
+  **Bootstrap** fsc (`artifacts/Bootstrap/fsc/fsc.dll`, per the captured argv), use the FSharp.Core *package*, and write
+  to `artifacts/{bin,obj}/<proj>/Release/`, which is shared with build.sh output.
   So the layout is made right after build.sh and before the capture build.
 - Fsc task: `ParallelCompilation` defaults to true and emits `--parallelcompilation+`.
 
+- Captured: 17 fsc invocations (14 projects; FSharp.Core x3 TFMs, FCS x2). Response files start with a UTF-8 BOM.
+  Baseline wall for all 17 is about 111 s (FCS net11.0 about 27 s wall / 137 s CPU).
+- jit_flags branch: commit 43600ddcb on https://github.com/safesparrow/fsharp/tree/jit_flags. The capture build proved
+  that all 17 fsc invocations received DOTNET_TieredPGO=0 and DOTNET_TC_CallCountingDelayMs=0 from the targets.
+- `--times:<csv>`: the last row (root "FSC compilation") is sometimes truncated because fsc exits before the async CSV
+  writer flushes (a small compiler bug). The parser doesn't depend on that row.
+- Instrumentation overhead (hook + --times) vs bare: about +2-3% wall, the same in all configs (results/overhead).
+- The box is a desktop session: background load is 0.3-1.5 cores (WindowServer, VS Code, Activity Monitor,
+  mediaanalysisd, Spotlight), plus about 2.4 GB of swap in use. Hence hostmon.py, the per-run flags, and the report
+  sensitivity check without flagged runs.
+
+## Fork state
+- safesparrow/fsharp `main` was fast-forwarded to dotnet/fsharp main (no fork-only commits were on it).
+- NOT done: deleting the fork's other 96 branches and 88 tags to make it 1:1. Branch `pars_2` is the head of the
+  open upstream draft PR dotnet/fsharp#15433, and deleting it would auto-close that PR. The fork also has 2 open
+  internal PRs. Waiting for the user's decision.
+
 ## Status log
-- (see git history and the sections below as they're filled in)
+- 2026-10-17: the user interrupted and used the box. The earlier overhead A/B was discarded and redone.
+- 2026-10-17: `scripts/run_all.sh all` started (nohup), log at work/logs/run_all.log. It's resumable: re-running skips
+  recorded runs.

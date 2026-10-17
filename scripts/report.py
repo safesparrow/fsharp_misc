@@ -29,7 +29,7 @@ from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-B = 2000
+B = int(__import__("os").environ.get("REPORT_B", "2000"))  # bootstrap resamples; lower only for quick previews
 
 # ------------------------------------------------------------------ metrics
 PHASE_SEGMENTS = [  # (segment, [fsc ReportTime phases])
