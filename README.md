@@ -5,7 +5,11 @@ the projects of dotnet/fsharp's `FSharp.Compiler.Service.slnx`. The compiler bin
 ReadyToRun, laid out the way the .NET SDK ships them.
 
 - Report (short, shareable): [`reports/report.md`](reports/report.md)
-- Report (interactive, all metrics): `reports/report.html`. Open it locally; it loads `reports/data/report-data.js`.
+- Report (interactive, all metrics): https://safesparrow.github.io/fsharp_misc/reports/report.html
+  (`reports/report.html`; it also works opened locally, since it loads `reports/data/report-data.js`)
+- Phase 3, runtime knobs on top of the JIT flags: https://safesparrow.github.io/fsharp_misc/reports/phase3/report.html
+  ([`reports/phase3/report.md`](reports/phase3/report.md))
+- GitHub Pages serves the root of `main`, so a push updates the site.
 - All report numbers: [`reports/data/summary.json`](reports/data/summary.json). Raw runs: `results/*/runs.jsonl`.
 - Plan and context: [`PLAN.md`](PLAN.md)
 - Compiler change under test: branch [`jit_flags`](https://github.com/safesparrow/fsharp/tree/jit_flags) on the fork.
