@@ -177,3 +177,5 @@ signal: it came only from 3 tiny (0.5-1 s), startup-dominated compilations.
 6. Reports: `.venv/bin/python scripts/report.py`. Write reports/findings.md (the interpretation), and add the
    sdk_compare/buildbench sections to report.py / report_md.py / report_template.html (not done yet).
 7. Open decision for the user: deleting the fork's 96 branches / 88 tags (see "Fork state").
+- 2026-10-17: system sleep is blocked during benchmarks with `caffeinate -i -m -s -t 43200` (12 h, pid in
+  work/caffeinate.pid; `kill $(cat work/caffeinate.pid)` to release it). Closing the lid still sleeps the Mac.
