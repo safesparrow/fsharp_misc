@@ -338,37 +338,6 @@ function drawForest(box, rows, series, colorOf, title, sub, xlab, tipExtra) {
   n.textContent = "Filled dot: the 95% CI excludes zero. Hollow dot: the difference could be noise. Hover a mark for the absolute values.";
   box.appendChild(n);
 }
-function stackedChart(box, title, sub, rows, segs, unit, segColor) {
-  box.innerHTML = "";
-  if (!rows.length) { box.innerHTML = `<div class="empty">Nothing selected.</div>`; return; }
-  const W = 1000, left = 170, right = 90, bh = 18, gap = 12;
-  const svg = el("svg", { viewBox: `0 0 ${W} 100`, role: "img", "aria-label": title });
-  const top = frame(svg, W - 10, title, sub, segs.map((s, i) => ({ label: s, color: segColor(i), kind: "rect" }))) + 6;
-  const H = top + rows.length * (bh + gap) + 44;
-  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-  const max = Math.max(...rows.map((r) => r[1].reduce((a, b) => a + b, 0))) || 1;
-  const X = (v) => (v / max) * (W - left - right);
-  const step = niceStep(max / 6);
-  for (let t = 0; t <= max + 1e-9; t += step) {
-    el("line", { x1: left + X(t), x2: left + X(t), y1: top - 4, y2: H - 38, stroke: css("--grid") }, svg);
-    text(svg, left + X(t), H - 24, t >= 1000 ? (t / 1000).toFixed(t % 1000 ? 1 : 0) + "K" : +t.toFixed(2), { "text-anchor": "middle", fill: css("--muted"), "font-size": 11 });
-  }
-  text(svg, left + (W - left - right) / 2, H - 6, unit, { "text-anchor": "middle" });
-  rows.forEach(([label, vals], i) => {
-    const y = top + i * (bh + gap);
-    text(svg, left - 10, y + bh / 2 + 4, label, { "text-anchor": "end", fill: css("--ink") });
-    let x = left; const tot = vals.reduce((a, b) => a + b, 0);
-    vals.forEach((v, j) => {
-      if (v <= 0) return;
-      const w = Math.max(0, X(v) - 2);
-      const r = el("rect", { x, y, width: w, height: bh, fill: segColor(j) }, svg);
-      bindTip(r, `<b>${esc(label)}</b><br>${esc(segs[j])}: <b>${(+v.toFixed(2)).toLocaleString("en-US")}</b> ${esc(unit.split(" ")[0])} (${((v / tot) * 100).toFixed(0)}%)`);
-      x += X(v);
-    });
-    text(svg, x + 6, y + bh / 2 + 4, `${(+tot.toFixed(1)).toLocaleString("en-US")}`, { fill: css("--ink2"), "font-family": css("--f-mono"), "font-size": 11 });
-  });
-  box.appendChild(svg);
-}
 
 
 const TL = (t) => D.target_labels[t] || t;
