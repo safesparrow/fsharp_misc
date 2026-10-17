@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Startup hook (DOTNET_STARTUP_HOOKS) that turns on MultiCoreJit (System.Runtime.ProfileOptimization) for fsc,
+       without changing the compiler. Profile dir: $FSCPERF_MCJ_DIR. One profile per compilation (hash of cwd + args). -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+</Project>

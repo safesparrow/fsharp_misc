@@ -117,6 +117,7 @@ def main():
     ap.add_argument("--configs-only", default=None, help="comma list of config ids to run")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--no-hook", action="store_true", help="don't load the GC/JIT stats startup hook")
+    ap.add_argument("--hook", default="layouts/hook/FscPerfHook.dll", help="stats hook dll (relative to the repo root)")
     ap.add_argument("--no-times", action="store_true", help="don't pass --times:<csv> to fsc")
     ap.add_argument("--tag", default="", help="free-form label stored with each run")
     ap.add_argument("--quiet-threshold", type=float, default=1.0,
@@ -186,14 +187,16 @@ def main():
                         continue
                     layout = ROOT / c["layout"]
                     dotnet = ROOT / c["dotnet"]
-                    env = clean_env(c.get("env", {}))
+                    # "${ROOT}" in a config's env values expands to the repo root (e.g. for a hook dll or profile dir)
+                    env = clean_env({k: v.replace("${ROOT}", str(ROOT)) for k, v in c.get("env", {}).items()})
                     env["DOTNET_ROOT"] = str(dotnet.parent)
                     rsp = rsps[(c["id"], v)]
                     statsf, timesf = rsp.parent / "stats.json", rsp.parent / "times.csv"
                     for f in (statsf, timesf):
                         f.unlink(missing_ok=True)
                     if not a.no_hook:
-                        env["DOTNET_STARTUP_HOOKS"] = str(ROOT / "layouts" / "hook" / "FscPerfHook.dll")
+                        # a config may bring its own startup hook (phase 3: MultiCoreJit); the stats hook goes last
+                        env["DOTNET_STARTUP_HOOKS"] = ":".join(h for h in (env.get("DOTNET_STARTUP_HOOKS"), str(ROOT / a.hook)) if h)
                         env["FSCPERF_STATS_FILE"] = str(statsf)
                     dotnet = str(dotnet)
                     logp = rsp.parent / "last.log"

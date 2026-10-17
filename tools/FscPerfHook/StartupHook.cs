@@ -36,7 +36,21 @@ internal class StartupHook
         Kv("lock_contentions", Monitor.LockContentionCount);
         Kv("threadpool_threads", ThreadPool.ThreadCount);
         Kv("threadpool_items", ThreadPool.CompletedWorkItemCount);
-        sb.Length--; sb.Append('}');
+        // Effective runtime settings, so a benchmark config can show that its knob took effect (phase 3).
+        sb.Append("\"gc_config\":{");
+        foreach (var kv in GC.GetConfigurationVariables())
+            sb.Append('"').Append(kv.Key).Append("\":\"").Append(Convert.ToString(kv.Value, inv)).Append("\",");
+        if (sb[sb.Length - 1] == ',') sb.Length--;
+        sb.Append("},\"switches\":{");
+        foreach (var k in new[] { "System.Runtime.TieredPGO", "System.Runtime.TieredCompilation", "System.Runtime.TieredCompilation.CallCountingDelayMs",
+                                  "System.GC.Server", "System.GC.Concurrent", "System.Threading.ThreadPool.MinThreads" })
+            sb.Append('"').Append(k).Append("\":\"").Append(Convert.ToString(AppContext.GetData(k), inv)).Append("\",");
+        foreach (var k in new[] { "DOTNET_TieredPGO", "DOTNET_TC_CallCountingDelayMs", "DOTNET_GCDynamicAdaptationMode", "DOTNET_GCgen0size",
+                                  "DOTNET_gcConcurrent", "DOTNET_gcServer", "DOTNET_GCHeapCount" })
+            sb.Append('"').Append(k).Append("\":\"").Append(Environment.GetEnvironmentVariable(k)).Append("\",");
+        ThreadPool.GetMinThreads(out var minW, out _);
+        sb.Append("\"threadpool_min_workers\":\"").Append(minW).Append("\"}");
+        sb.Append('}');
         File.WriteAllText(path, sb.ToString());
     }
 }
