@@ -289,7 +289,7 @@ def main():
         projects=projects, project_info=pinfo,
         phase1=dict(ref="baseline", cells=cells1, stats=stats_block(g1, projects, cells1), cmp=per1, total=tot1,
                     total_clean=tot1c, flags=flags_out(fl1, projects, cells1), aa=aa,
-                    runs=meta1["runs"], warmup=meta1["warmup"]))
+                    runs=runs_label(metas1), warmup=meta1["warmup"]))
 
     runs2, metas2 = load_runs(res / "phase2")
     if runs2:
@@ -323,7 +323,7 @@ def main():
         data["phase2"] = dict(jit=jit, variants=["seq", "par"], cells=cells2, projects=p2,
                               stats=stats_block(g2, p2, cells2), par_eff=par_eff, par_total=par_tot,
                               jit_eff=jit_eff, jit_total=jit_tot, interaction=inter, interaction_total=inter_tot,
-                              flags=flags_out(fl2, p2, cells2), runs=meta2["runs"], warmup=meta2["warmup"],
+                              flags=flags_out(fl2, p2, cells2), runs=runs_label(metas2), warmup=meta2["warmup"],
                               meta=dict(start=meta2["start"], end=meta2.get("end"), argv=meta2["argv"]))
 
     # SDK 10 vs SDK 11 vs main (fsc level) and whole-`dotnet build` results; computed by analyze_sdk_compare.py
@@ -347,6 +347,12 @@ def main():
     import report_md
     report_md.write(data, out)
     print(f"wrote {out}/report.md, report.html, data/summary.json, data/report-data.js, img/*.png")
+
+
+def runs_label(metas):
+    """Measured runs per cell; '10–20' when invocations used different counts."""
+    ns = sorted({m["runs"] for m in metas})
+    return str(ns[0]) if len(ns) == 1 else f"{ns[0]}–{ns[-1]}"
 
 
 def build_meta(meta1, metas1, cells1):
