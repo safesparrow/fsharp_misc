@@ -179,3 +179,24 @@ signal: it came only from 3 tiny (0.5-1 s), startup-dominated compilations.
 7. Open decision for the user: deleting the fork's 96 branches / 88 tags (see "Fork state").
 - 2026-10-17: system sleep is blocked during benchmarks with `caffeinate -i -m -s -t 43200` (12 h, pid in
   work/caffeinate.pid; `kill $(cat work/caffeinate.pid)` to release it). Closing the lid still sleeps the Mac.
+
+## PAUSED 2026-10-17 ~17:00 (user: "Pause for now")
+Done: SDK comparison (360 runs), Fantomas build-level (36 runs), phase 1 complete (1380 runs, 50 flagged).
+Phase 2 in progress when paused: tiny compilations done; FSharp.Test.Utilities at round 8/20; 352 rows in
+results/phase2/runs.jsonl (last row valid). Traces not started. caffeinate released.
+
+To resume:
+1. `caffeinate -i -m -s -t 43200 & echo $! > work/caffeinate.pid`
+2. `nohup bash -c './scripts/run_all.sh phase2 && ./scripts/run_all.sh traces' >> work/logs/run_resume2.log 2>&1 &`
+   (bench.py/trace.py skip recorded runs; phase 2 and traces were trimmed to fit the time budget, see run_all.sh). ~1.5 h left.
+3. `.venv/bin/python scripts/report.py` (full B=2000), then write reports/findings.md:
+   measured results (phase 1, phase 2, SDK 10 vs 11, whole build) + a separate "Untested candidates for further gains"
+   section (user asked for it): GC pause 11-24% of wall with flags (FCS 2.96 s of 12.4 s; .NET 11 does ~5x the gen0 GCs
+   of .NET 10 at the same total pause -> try gen0 budget, GCDynamicAdaptationMode=0, GCConcurrent=0, GCHeapCount in
+   whole builds); flags via fsc runtimeconfig (tool_fsc.csproj) instead of env; small non-zero CallCountingDelayMs for
+   tiny compilations; MultiCoreJit (ProfileOptimization) in fsc main; crossgen2 --inputbubble/composite + MIBC;
+   serial phases (Write .NET Binary 1.8 s of 13.5 s, FCS averages 5.1 of 11 cores); 31 threadpool threads on FCS.
+   findings.md is rendered by a minimal md renderer in the HTML: headings, lists, bold, code, links only (no tables).
+4. Check HTML (headless Chrome), commit, push, republish artifact https://claude.ai/artifact/NjdZoGUFZJ9HQ5Rqm83JAM
+   from reports/report.html with files {"data/report-data.js": "reports/data/report-data.js"}.
+5. `kill $(cat work/caffeinate.pid)`.
