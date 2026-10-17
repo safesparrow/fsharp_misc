@@ -200,7 +200,8 @@ def main():
                         env["FSCPERF_STATS_FILE"] = str(statsf)
                     dotnet = str(dotnet)
                     logp = rsp.parent / "last.log"
-                    top = hostmon.top_procs(3, exclude_pids={os.getpid()}) if not is_warm else []
+                    # CPU/RSS of the busiest other processes; names are left out because results are published
+                    top = [dict(cpu=x["cpu"], rss_mb=x["rss_mb"]) for x in hostmon.top_procs(3, exclude_pids={os.getpid()})] if not is_warm else []
                     pre_busy, waited = hostmon.wait_quiet(a.quiet_threshold, 1.0, a.quiet_max_wait)
                     with logp.open("w") as log, hostmon.RunMonitor() as mon:
                         r = run_once(dotnet, str(layout / "fsc.dll"), rsp, cmd["cwd"], env, log)

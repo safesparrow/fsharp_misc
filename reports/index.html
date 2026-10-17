@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fsc Benchmark Reports</title>
+<style>
+:root { --bg: #f5f6f8; --ink: #0f1720; --ink2: #4b5563; --accent: #1d4f86; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0e1116; --ink: #eef1f5; --ink2: #b8c0cc; --accent: #8cbcf0; color-scheme: dark; } }
+body { margin: 0 auto; max-width: 72ch; padding: 32px 16px; background: var(--bg); color: var(--ink); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+a { color: var(--accent); } li { margin-bottom: 8px; } .sub { color: var(--ink2); }
+</style>
+</head>
+<body>
+<h1>F# compiler (fsc) benchmark reports</h1>
+<ul>
+  <li><a href="report.html">JIT flags and parallel compilation</a> (<a href="report.md">MD</a>)<br>
+    <span class="sub">DOTNET_TieredPGO=0 + DOTNET_TC_CallCountingDelayMs=0 on all FSharp.Compiler.Service.slnx compilations, parallel compilation on/off, SDK 10 vs 11, whole Fantomas build.</span></li>
+  <li><a href="phase3/report.html">Runtime knobs on top of the JIT flags</a> (<a href="phase3/report.md">MD</a>)<br>
+    <span class="sub">GC, JIT and ReadyToRun settings on FCS, FSharp.Core, FSharp.Build and a whole Fantomas build. Preliminary (quick pass).</span></li>
+</ul>
+<p class="sub">Scripts and raw data: the repository this site is built from.</p>
+</body>
+</html>
