@@ -238,3 +238,11 @@ To finish: `PASS=full ./scripts/run_phase3.sh fsc && PASS=full ./scripts/run_pha
 `.venv/bin/python scripts/report3.py`, update reports/phase3/findings.md (drop "preliminary", full-pass numbers,
 note datas_nonconc on FSharp.Build is not interleaved), republish the artifact from reports/phase3/report.html with
 files {"data/report-data.js": "reports/phase3/data/report-data.js"}.
+
+## PR material (2026-10-17)
+- Fork branch `jit_flags_runtimeconfig` (2133b6e91, on 99406265c): TieredPGO=false + RuntimeHostConfigurationOption
+  System.Runtime.TieredCompilation.CallCountingDelayMs=0 in src/fsc/fsc.targets; generated runtimeconfig verified.
+  The SDK ships its own fsc runtimeconfig (dotnet/sdk tool_fsc.csproj), which needs the same change.
+- Short report: scripts/report_pr.py -> reports/pr (HTML: left nav, collapsible sections; MD: absolute links/images
+  to https://safesparrow.github.io/fsharp_misc/reports/...). Scope: .NET 11, parallel on, newest TFM per project (14).
+- Repo is public; GitHub Pages serves main root. Commits use the noreply email (repo-local git config).
