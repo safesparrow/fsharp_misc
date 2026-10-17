@@ -200,3 +200,32 @@ To resume:
 4. Check HTML (headless Chrome), commit, push, republish artifact https://claude.ai/artifact/NjdZoGUFZJ9HQ5Rqm83JAM
    from reports/report.html with files {"data/report-data.js": "reports/data/report-data.js"}.
 5. `kill $(cat work/caffeinate.pid)`.
+
+## Phase 3 (user request 2026-10-17): explore the untested candidates
+Scope (user): FCS, FSharp.Core, Fantomas, one small project; default TFM only; few runs. Reference ("base") =
+both JIT flags + parallel compilation on. Separate HTML + MD report, same layout and chart styles.
+
+Compilations (main @ 99406265, R2R layout, .NET 11 RC1):
+- FSharp.Compiler.Service net11.0 (~13.5 s): 5 runs + 1 warm-up
+- FSharp.Core netstandard2.0 (first TFM in the fsproj, ~4.6 s): 8 runs + 1 warm-up
+- FSharp.Build netstandard2.0 (small, ~0.9 s): 20 runs + 1 warm-up
+- Fantomas whole `dotnet build` (SDK 11 targets, our layout's fsc via DotnetFscCompilerPath, config env on fsc only
+  through a wrapper): 5 runs + 1 warm-up
+
+Configs (all on top of base; values for DOTNET_* DWORD knobs are hex):
+1. base: DOTNET_TieredPGO=0, DOTNET_TC_CallCountingDelayMs=0
+2. rc_flags: the same two flags as fsc.runtimeconfig.json properties, no env (the proposed shipping form)
+3. ccd10: CallCountingDelayMs=10 ms instead of 0
+4. datas_off: + DOTNET_GCDynamicAdaptationMode=0
+5. gen0_256m: + DOTNET_GCgen0size=0x10000000
+6. gc_nonconc: + DOTNET_GCConcurrent=0
+7. wks_gc: + DOTNET_gcServer=0 (workstation, concurrent)
+8. heaps4: + DOTNET_GCHeapCount=4
+9. tp_min16: + runtimeconfig System.Threading.ThreadPool.MinThreads=16
+10. mcj: + MultiCoreJit (ProfileOptimization) from a startup hook; profile per compilation, primed by the warm-up
+11. r2r_composite: layout with crossgen2 composite / input bubble over the compiler's own assemblies (if it builds)
+12. (stage 2) best combination of the above, if two or more help
+Not tested: MIBC static PGO (needs dotnet-pgo and a trace pipeline), NativeAOT, compiler code changes.
+Verification: a second stats hook (layouts/hook2) also records GC.GetConfigurationVariables() and the runtime
+switches, so every config shows its knob took effect. The phase 1/2 hook is left untouched.
+Estimate: fsc-level ~35 min, Fantomas ~31 min, prep ~20 min, stage 2 ~15 min, report ~20 min: about 2 h.
