@@ -15,6 +15,7 @@
   --good: #0a7f2e; --bad: #b42318; --flag: #a15c00;
   --s-baseline: #898781; --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
   --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+  --s9: #9b6a2f; --s10: #0f9bb0; --s11: #7a8a12; --s12: #5a6b8c;
   --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
   color-scheme: light;
@@ -26,6 +27,7 @@
     --good: #3fb950; --bad: #f47067; --flag: #e3a34a;
     --s-baseline: #9a9890; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
     --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --s9: #c08a4a; --s10: #2bb8cc; --s11: #a3b52a; --s12: #8797b8;
     color-scheme: dark;
   }
 }
@@ -35,6 +37,7 @@
   --good: #3fb950; --bad: #f47067; --flag: #e3a34a;
   --s-baseline: #9a9890; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
   --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --s9: #c08a4a; --s10: #2bb8cc; --s11: #a3b52a; --s12: #8797b8;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -277,9 +280,9 @@ const REF = D.meta.ref_config || "baseline"; // drawn in neutral gray
 const configColor = (() => {
   const all = D.meta.configs.map((c) => c.id);
   const others = all.filter((c) => c !== REF);
-  return (id) => (id === REF ? css("--s-baseline") : css(`--s${(others.indexOf(id) % 8) + 1}`));
+  return (id) => (id === REF ? css("--s-baseline") : css(`--s${(others.indexOf(id) % 12) + 1}`));
 })();
-const slot = (i) => css(`--s${(i % 8) + 1}`);
+const slot = (i) => css(`--s${(i % 12) + 1}`);
 function md(src) { // minimal markdown: headings, lists, bold, code, links, paragraphs
   const inline = (t) => esc(t).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');

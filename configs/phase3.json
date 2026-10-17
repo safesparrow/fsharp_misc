@@ -19,5 +19,7 @@
    "layout": "layouts/baseline", "dotnet": "repos/baseline/.dotnet/dotnet", "env": {"DOTNET_TieredPGO": "0", "DOTNET_TC_CallCountingDelayMs": "0",
      "DOTNET_STARTUP_HOOKS": "${ROOT}/layouts/mcjhook/McjHook.dll", "FSCPERF_MCJ_DIR": "${ROOT}/work/mcj/fsc"}},
   {"id": "r2r_composite", "desc": "+ composite ReadyToRun image (crossgen2 --composite --inputbubble) of fsc, FSharp.Compiler.Service, FSharp.Core, FSharp.DependencyManager.Nuget",
-   "layout": "layouts/p3_composite", "dotnet": "repos/baseline/.dotnet/dotnet", "env": {"DOTNET_TieredPGO": "0", "DOTNET_TC_CallCountingDelayMs": "0"}}
+   "layout": "layouts/p3_composite", "dotnet": "repos/baseline/.dotnet/dotnet", "env": {"DOTNET_TieredPGO": "0", "DOTNET_TC_CallCountingDelayMs": "0"}},
+  {"id": "datas_nonconc", "desc": "Stage 2 combination of the two settings that helped in the quick pass: + DOTNET_GCDynamicAdaptationMode=0 + DOTNET_gcConcurrent=0",
+   "layout": "layouts/baseline", "dotnet": "repos/baseline/.dotnet/dotnet", "env": {"DOTNET_TieredPGO": "0", "DOTNET_TC_CallCountingDelayMs": "0", "DOTNET_GCDynamicAdaptationMode": "0", "DOTNET_gcConcurrent": "0"}}
 ]

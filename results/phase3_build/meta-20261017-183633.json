@@ -1,0 +1,130 @@
+{
+ "argv": [
+  "scripts/buildbench3.py",
+  "--repo",
+  "repos/fantomas",
+  "--sln",
+  "fantomas.slnx",
+  "--configs",
+  "configs/phase3.json",
+  "--configs-only",
+  "base,ccd10,datas_off,gen0_256m,gc_nonconc,wks_gc,heaps4,tp_min16,mcj,r2r_composite",
+  "--out",
+  "results/phase3_build",
+  "--runs",
+  "2",
+  "--warmup",
+  "1"
+ ],
+ "start": "2026-10-17T18:36:33+0100",
+ "repo": "~/RiderProjects/fsharp_perf/repos/fantomas",
+ "runs": 2,
+ "warmup": 1,
+ "commit": "f734124bcc4406be0a7b592c00b9de3167d32125",
+ "configs": [
+  {
+   "id": "base",
+   "desc": "Reference: DOTNET_TieredPGO=0 + DOTNET_TC_CallCountingDelayMs=0 (env), parallel compilation on",
+   "layout": "layouts/baseline",
+   "dotnet": "repos/baseline/.dotnet/dotnet",
+   "env": {
+    "DOTNET_TieredPGO": "0",
+    "DOTNET_TC_CallCountingDelayMs": "0"
+   }
+  },
+  {
+   "id": "ccd10",
+   "desc": "Call-counting delay 10 ms instead of 0. Both JIT settings via fsc.runtimeconfig.json (System.Runtime.TieredPGO=false, CallCountingDelayMs=10), which avoids hex parsing of env values",
+   "layout": "layouts/p3_ccd10",
+   "dotnet": "repos/baseline/.dotnet/dotnet",
+   "env": {}
+  },
+  {
+   "id": "datas_off",
+   "desc": "+ DOTNET_GCDynamicAdaptationMode=0 (DATAS off)",
+   "layout": "layouts/baseline",
+   "dotnet": "repos/baseline/.dotnet/dotnet",
+   "env": {
+    "DOTNET_TieredPGO": "0",
+    "DOTNET_TC_CallCountingDelayMs": "0",
+    "DOTNET_GCDynamicAdaptationMode": "0"
+   }
+  },
+  {
+   "id": "gen0_256m",
+   "desc": "+ DOTNET_GCgen0size=10000000 (hex: 256 MB gen0 budget)",
+   "layout": "layouts/baseline",
+   "dotnet": "repos/baseline/.dotnet/dotnet",
+   "env": {
+    "DOTNET_TieredPGO": "0",
+    "DOTNET_TC_CallCountingDelayMs": "0",
+    "DOTNET_GCgen0size": "10000000"
+   }
+  },
+  {
+   "id": "gc_nonconc",
+   "desc": "+ DOTNET_gcConcurrent=0 (no background GC; the name is case-sensitive on macOS/Linux)",
+   "layout": "layouts/baseline",
+   "dotnet": "repos/baseline/.dotnet/dotnet",
+   "env": {
+    "DOTNET_TieredPGO": "0",
+    "DOTNET_TC_CallCountingDelayMs": "0",
+    "DOTNET_gcConcurrent": "0"
+   }
+  },
+  {
+   "id": "wks_gc",
+   "desc": "+ DOTNET_gcServer=0 (Workstation GC, concurrent)",
+   "layout": "layouts/baseline",
+   "dotnet": "repos/baseline/.dotnet/dotnet",
+   "env": {
+    "DOTNET_TieredPGO": "0",
+    "DOTNET_TC_CallCountingDelayMs": "0",
+    "DOTNET_gcServer": "0"
+   }
+  },
+  {
+   "id": "heaps4",
+   "desc": "+ DOTNET_GCHeapCount=4 (Server GC with 4 heaps)",
+   "layout": "layouts/baseline",
+   "dotnet": "repos/baseline/.dotnet/dotnet",
+   "env": {
+    "DOTNET_TieredPGO": "0",
+    "DOTNET_TC_CallCountingDelayMs": "0",
+    "DOTNET_GCHeapCount": "4"
+   }
+  },
+  {
+   "id": "tp_min16",
+   "desc": "+ runtimeconfig System.Threading.ThreadPool.MinThreads=16",
+   "layout": "layouts/p3_tp_min16",
+   "dotnet": "repos/baseline/.dotnet/dotnet",
+   "env": {
+    "DOTNET_TieredPGO": "0",
+    "DOTNET_TC_CallCountingDelayMs": "0"
+   }
+  },
+  {
+   "id": "mcj",
+   "desc": "+ MultiCoreJit (ProfileOptimization) from a startup hook; one profile per compilation, recorded by the warm-up run",
+   "layout": "layouts/baseline",
+   "dotnet": "repos/baseline/.dotnet/dotnet",
+   "env": {
+    "DOTNET_TieredPGO": "0",
+    "DOTNET_TC_CallCountingDelayMs": "0",
+    "DOTNET_STARTUP_HOOKS": "${ROOT}/layouts/mcjhook/McjHook.dll",
+    "FSCPERF_MCJ_DIR": "${ROOT}/work/mcj/fsc"
+   }
+  },
+  {
+   "id": "r2r_composite",
+   "desc": "+ composite ReadyToRun image (crossgen2 --composite --inputbubble) of fsc, FSharp.Compiler.Service, FSharp.Core, FSharp.DependencyManager.Nuget",
+   "layout": "layouts/p3_composite",
+   "dotnet": "repos/baseline/.dotnet/dotnet",
+   "env": {
+    "DOTNET_TieredPGO": "0",
+    "DOTNET_TC_CallCountingDelayMs": "0"
+   }
+  }
+ ]
+}

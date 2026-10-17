@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>fsc Runtime Knobs</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a single reading column for context, then a full-width explorer (sticky filter bar, charts, tables). */
+:root {
+  --bg: #f5f6f8; --surface: #fdfdfe; --ink: #0f1720; --ink2: #4b5563; --muted: #858c97;
+  --grid: #e2e5ea; --axis: #c3c8d0; --accent: #1d4f86; --band: rgba(15,23,32,.035);
+  --good: #0a7f2e; --bad: #b42318; --flag: #a15c00;
+  --s-baseline: #898781; --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+  --s9: #9b6a2f; --s10: #0f9bb0; --s11: #7a8a12; --s12: #5a6b8c;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1116; --surface: #161a21; --ink: #eef1f5; --ink2: #b8c0cc; --muted: #8a919c;
+    --grid: #262b34; --axis: #3a404b; --accent: #8cbcf0; --band: rgba(255,255,255,.035);
+    --good: #3fb950; --bad: #f47067; --flag: #e3a34a;
+    --s-baseline: #9a9890; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --s9: #c08a4a; --s10: #2bb8cc; --s11: #a3b52a; --s12: #8797b8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1116; --surface: #161a21; --ink: #eef1f5; --ink2: #b8c0cc; --muted: #8a919c;
+  --grid: #262b34; --axis: #3a404b; --accent: #8cbcf0; --band: rgba(255,255,255,.035);
+  --good: #3fb950; --bad: #f47067; --flag: #e3a34a;
+  --s-baseline: #9a9890; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --s9: #c08a4a; --s10: #2bb8cc; --s11: #a3b52a; --s12: #8797b8;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+a { color: var(--accent); }
+code, .mono { font-family: var(--f-mono); font-size: .9em; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.2; margin: 0; }
+h1 { font-size: 1.75rem; font-weight: 600; letter-spacing: -.01em; }
+h2 { font-size: 1.25rem; font-weight: 600; margin-top: 8px; }
+h3 { font-size: 1rem; font-weight: 600; }
+.wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+.prose { max-width: 72ch; display: flex; flex-direction: column; gap: 10px; }
+.prose p, .prose ul, .prose ol { margin: 0; }
+.prose li + li { margin-top: 3px; }
+header { padding-block: 28px 4px; display: flex; flex-direction: column; gap: 8px; }
+.eyebrow { font: 500 .75rem/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.sub { color: var(--ink2); }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px 32px; }
+.cols > * { min-width: 0; }
+dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; }
+dl.kv dt { color: var(--muted); font-size: .85rem; padding-top: 1px; }
+dl.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.tablebox { overflow-x: auto; border: 1px solid var(--grid); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: .875rem; }
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--grid); vertical-align: top; }
+th { font-weight: 500; color: var(--ink2); background: var(--band); white-space: nowrap; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; font-family: var(--f-mono); font-size: .82rem; }
+tr:last-child td { border-bottom: 0; }
+.sig { font-weight: 600; }
+.faster { color: var(--good); } .slower { color: var(--bad); }
+.flag { color: var(--flag); }
+/* explorer */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+  padding-block: 10px; border-bottom: 1px solid var(--grid); display: flex; flex-direction: column; gap: 8px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.row > label.lbl { font: 500 .72rem/1 var(--f-mono); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); min-width: 92px; }
+select, button { font: inherit; font-size: .875rem; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--axis); border-radius: 6px; padding: 5px 9px; }
+button { cursor: pointer; }
+button:focus-visible, select:focus-visible, .chip:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+.seg { display: inline-flex; border: 1px solid var(--axis); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; background: var(--surface); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.seg button:disabled { color: var(--muted); cursor: not-allowed; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; flex: 1; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--axis); border-radius: 999px;
+  padding: 3px 10px 3px 8px; font-size: .8rem; cursor: pointer; background: var(--surface); user-select: none; }
+.chip input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.chip .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.chip.off { color: var(--muted); border-style: dashed; }
+.chip.off .dot { opacity: .25; }
+.link { border: 0; background: none; color: var(--accent); padding: 2px 4px; text-decoration: underline; font-size: .8rem; }
+.charts { display: grid; grid-template-columns: 1fr; gap: 22px; }
+.fig { background: var(--surface); border: 1px solid var(--grid); border-radius: 6px; padding: 12px 12px 8px; overflow-x: auto; }
+.fig svg { display: block; width: 100%; height: auto; min-width: 560px; }
+.fig .note { color: var(--muted); font-size: .8rem; margin: 6px 4px 0; }
+.small-multiples { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr)); gap: 14px; }
+.small-multiples > .fig svg { min-width: 360px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--grid); border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.tile .k { font-size: .78rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.tile .v { font-size: 1.35rem; font-weight: 600; }
+.tile .ci { font: .78rem var(--f-mono); color: var(--ink2); }
+#tip { position: fixed; pointer-events: none; z-index: 20; background: var(--ink); color: var(--bg); font-size: .8rem;
+  line-height: 1.4; padding: 7px 9px; border-radius: 5px; max-width: 340px; display: none; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+#tip b { font-weight: 600; }
+.empty { color: var(--muted); padding: 16px; }
+@media (max-width: 520px) { .row > label.lbl { min-width: 0; width: 100%; } h1 { font-size: 1.4rem; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<!-- Generated by scripts/report3.py: styles, chart helpers and the metric grid come from scripts/report_template.html. -->
+<div class="wrap">
+  <header>
+    <div class="eyebrow">dotnet/fsharp · performance · phase 3</div>
+    <h1 id="title">fsc runtime knobs</h1>
+    <div class="sub" id="subtitle">Loading data…</div>
+  </header>
+
+  <section class="prose" id="findings" hidden></section>
+
+  <section style="display:flex;flex-direction:column;gap:14px">
+    <h2>Setup</h2>
+    <div class="cols">
+      <div><h3 style="margin-bottom:8px">Hardware</h3><dl class="kv" id="hw"></dl></div>
+      <div><h3 style="margin-bottom:8px">Software</h3><dl class="kv" id="sw"></dl></div>
+    </div>
+    <div class="prose">
+      <h3>Method</h3>
+      <ol id="method"></ol>
+    </div>
+    <div class="tablebox"><table id="cfgtable"></table></div>
+    <h3>Did each setting take effect?</h3>
+    <div class="prose"><p>Read by the stats hook inside each fsc process at exit (<code>GC.GetConfigurationVariables()</code>, <code>AppContext</code>, <code>ThreadPool.GetMinThreads</code>), from the first measured run of each config.</p></div>
+    <div class="tablebox"><table id="verTable"></table></div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:14px">
+    <h2>Change vs base, per config</h2>
+    <div class="row"><label class="lbl">Metric</label><div class="seg" id="effSeg"></div></div>
+    <div class="fig" id="figEffect"></div>
+    <div class="tablebox"><table id="effTable"></table></div>
+  </section>
+
+
+  <section style="display:flex;flex-direction:column;gap:16px" id="gridSection">
+    <h2>Metric grid</h2>
+    <div class="prose">
+      <ul>
+        <li>One row per compilation, one column per metric. In each cell, every selected config is a bar.</li>
+        <li>A bar is the median. The whisker is the interquartile range (q1 to q3). Bars start at zero.</li>
+        <li>Hover a bar for n, the quartiles, and the change vs the reference config with its 95% CI.</li>
+      </ul>
+    </div>
+    <div class="bar" role="region" aria-label="Metric grid filters">
+      <div class="row">
+        <label class="lbl">Data set</label>
+        <div class="seg" id="gDsSeg"></div>
+      </div>
+      <div class="row">
+        <label class="lbl">Configs</label>
+        <div class="chips" id="gCfgChips"></div>
+      </div>
+      <div class="row">
+        <label class="lbl">Metrics</label>
+        <div class="chips" id="gMetChips"></div>
+        <span><button type="button" class="link" id="gmAll">all</button><button type="button" class="link" id="gmNone">none</button><button type="button" class="link" id="gmDef">default</button></span>
+      </div>
+      <div class="row">
+        <label class="lbl">Compilations</label>
+        <div class="chips" id="gProjChips"></div>
+        <span><button type="button" class="link" id="gpAll">all</button><button type="button" class="link" id="gpNone">none</button><button type="button" class="link" id="gpTop">largest 5</button></span>
+      </div>
+      <div class="row">
+        <label class="lbl">Scale</label>
+        <div class="seg" id="gScaleSeg">
+          <button type="button" id="gScCell" aria-pressed="true">Per cell</button>
+          <button type="button" id="gScCol" aria-pressed="false">Shared per metric</button>
+        </div>
+      </div>
+    </div>
+    <div class="fig" id="figGrid"></div>
+  </section>
+  
+
+  <section style="display:flex;flex-direction:column;gap:14px">
+    <h2>Measurement quality</h2>
+    <div class="prose" id="quality"></div>
+  </section>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script src="data/report-data.js"></script>
+<script>
+"use strict";
+const D = window.REPORT_DATA;
+const $ = (id) => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+if (!D) {
+  $("subtitle").textContent = "No data: data/report-data.js is missing. Run scripts/report3.py to generate it.";
+  throw new Error("REPORT_DATA missing");
+}
+const P2 = null;
+
+// ------------------------------------------------------------ helpers
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const M = Object.fromEntries(D.metrics.map((m) => [m.key, m]));
+const fmtV = (v, key) => {
+  if (v == null || isNaN(v)) return "–";
+  const m = M[key] || { digits: 2, unit: "" };
+  const d = m.digits;
+  const s = Math.abs(v) >= 1000 && d === 0 ? Math.round(v).toLocaleString("en-US") : v.toFixed(d);
+  return m.unit ? `${s} ${m.unit}` : s;
+};
+const fmtP = (x) => (x == null ? "–" : `${x >= 0 ? "+" : "−"}${Math.abs(x * 100).toFixed(1)}%`);
+const fmtCI = (c) => (c ? `${fmtP(c.lo)} to ${fmtP(c.hi)}` : "");
+const REF = D.meta.ref_config || "baseline"; // drawn in neutral gray
+const configColor = (() => {
+  const all = D.meta.configs.map((c) => c.id);
+  const others = all.filter((c) => c !== REF);
+  return (id) => (id === REF ? css("--s-baseline") : css(`--s${(others.indexOf(id) % 12) + 1}`));
+})();
+const slot = (i) => css(`--s${(i % 12) + 1}`);
+function md(src) { // minimal markdown: headings, lists, bold, code, links, paragraphs
+  const inline = (t) => esc(t).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  const out = []; let list = null;
+  const close = () => { if (list) { out.push(`</${list}>`); list = null; } };
+  for (const raw of src.split("\n")) {
+    const l = raw.trimEnd();
+    let m;
+    if (!l.trim()) { close(); continue; }
+    if ((m = l.match(/^(#{1,4})\s+(.*)/))) { close(); const n = Math.min(3, m[1].length + 1); out.push(`<h${n}>${inline(m[2])}</h${n}>`); continue; }
+    if ((m = l.match(/^\s*[-*]\s+(.*)/))) { if (list !== "ul") { close(); out.push("<ul>"); list = "ul"; } out.push(`<li>${inline(m[1])}</li>`); continue; }
+    if ((m = l.match(/^\s*\d+\.\s+(.*)/))) { if (list !== "ol") { close(); out.push("<ol>"); list = "ol"; } out.push(`<li>${inline(m[1])}</li>`); continue; }
+    close(); out.push(`<p>${inline(l)}</p>`);
+  }
+  close();
+  return out.join("\n");
+}
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function text(parent, x, y, s, attrs = {}) {
+  const t = el("text", { x, y, "font-family": css("--f-body") || "system-ui", "font-size": 12, fill: css("--ink2"), ...attrs }, parent);
+  t.textContent = s;
+  return t;
+}
+// Tooltip
+const tip = $("tip");
+function bindTip(node, html) {
+  node.addEventListener("pointerenter", () => { tip.innerHTML = html; tip.style.display = "block"; });
+  node.addEventListener("pointermove", (e) => {
+    const r = tip.getBoundingClientRect();
+    let x = e.clientX + 14, y = e.clientY + 14;
+    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+    if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  });
+  node.addEventListener("pointerleave", () => { tip.style.display = "none"; });
+}
+function niceStep(raw) {
+  if (raw <= 0) return 1;
+  const e = Math.pow(10, Math.floor(Math.log10(raw)));
+  for (const m of [1, 2, 2.5, 5, 10]) if (raw <= m * e) return m * e;
+  return 10 * e;
+}
+// Shared chart frame: title, subtitle, legend inside the SVG so a screenshot stands alone.
+function frame(svg, w, title, subtitle, legend) {
+  text(svg, 0, 18, title, { "font-size": 15, "font-weight": 600, fill: css("--ink") });
+  text(svg, 0, 37, subtitle, { "font-size": 12, fill: css("--ink2") });
+  let x = 0, y = 60;
+  for (const it of legend) {
+    const wItem = 22 + it.label.length * 6.6 + 16;
+    if (x + wItem > w) { x = 0; y += 18; }
+    if (it.kind === "hollow") el("circle", { cx: x + 6, cy: y - 4, r: 4.5, fill: css("--surface"), stroke: css("--muted"), "stroke-width": 1.8 }, svg);
+    else if (it.kind === "rect") el("rect", { x, y: y - 10, width: 12, height: 12, rx: 2, fill: it.color, "fill-opacity": it.light ? 0.35 : 1, stroke: it.color, "stroke-width": it.light ? 1.2 : 0 }, svg);
+    else if (it.kind === "whisker") { el("line", { x1: x, x2: x + 14, y1: y - 4, y2: y - 4, stroke: css("--ink"), "stroke-width": 1.4 }, svg); for (const xx of [x, x + 14]) el("line", { x1: xx, x2: xx, y1: y - 8, y2: y, stroke: css("--ink"), "stroke-width": 1.4 }, svg); }
+    else el("circle", { cx: x + 6, cy: y - 4, r: 5, fill: it.color }, svg);
+    text(svg, x + 18, y, it.label, { fill: css("--ink2") });
+    x += wItem;
+  }
+  return y + 18;
+}
+function chip(container, id, label, on, color, onToggle, title) {
+  const l = document.createElement("label");
+  l.className = "chip" + (on ? "" : " off");
+  if (title) l.title = title;
+  l.innerHTML = `<input type="checkbox" ${on ? "checked" : ""} aria-label="${esc(label)}"><span class="dot" style="background:${color}"></span>${esc(label)}`;
+  l.querySelector("input").onchange = onToggle;
+  container.appendChild(l);
+}
+// Generic forest plot: rows = [[label, [cmp per series]]], cmp = {d, lo, hi, sig}. Title + legend live inside the SVG.
+function drawForest(box, rows, series, colorOf, title, sub, xlab, tipExtra) {
+  box.innerHTML = "";
+  const maxLabel = Math.max(...rows.map(([p]) => p.replace("__", " · ").length));
+  const W = 1000, left = Math.min(460, 24 + maxLabel * 7), right = 40, per = 13, rowH = Math.max(24, series.length * per + 10);
+  const svg = el("svg", { viewBox: `0 0 ${W} 100`, role: "img", "aria-label": title });
+  const top = frame(svg, W - 10, title, sub, [...series.map((c) => ({ label: c, color: colorOf(c) })), { label: "hollow = 95% CI includes 0", kind: "hollow" }]) + 6;
+  const H = top + rowH * rows.length + 46;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  let lo = 0, hi = 0;
+  for (const [, xs] of rows) for (const x of xs) if (x) { lo = Math.min(lo, x.lo, x.d); hi = Math.max(hi, x.hi, x.d); }
+  const pad = (hi - lo) * 0.06 || 0.01; lo -= pad; hi += pad;
+  const X = (v) => left + ((v - lo) / (hi - lo)) * (W - left - right);
+  const step = niceStep(((hi - lo) * 100) / 6) / 100;
+  for (let t = Math.ceil(lo / step) * step; t <= hi + 1e-12; t += step) {
+    el("line", { x1: X(t), x2: X(t), y1: top, y2: H - 40, stroke: css("--grid"), "stroke-width": 1 }, svg);
+    text(svg, X(t), H - 26, fmtP(t).replace(".0%", "%"), { "text-anchor": "middle", fill: css("--muted"), "font-size": 11 });
+  }
+  el("line", { x1: X(0), x2: X(0), y1: top, y2: H - 40, stroke: css("--muted"), "stroke-width": 1.2 }, svg);
+  text(svg, (left + W - right) / 2, H - 8, xlab, { "text-anchor": "middle" });
+  rows.forEach(([p, xs], i) => {
+    const y0 = top + i * rowH;
+    if (i % 2 === 0) el("rect", { x: 0, y: y0, width: W, height: rowH, fill: css("--band") }, svg);
+    text(svg, left - 12, y0 + rowH / 2 + 4, p.replace("__", " · "), { "text-anchor": "end", fill: css("--ink") });
+    xs.forEach((x, j) => {
+      if (!x) return;
+      const c = series[j], col = colorOf(c), y = y0 + 5 + per / 2 + j * per + (rowH - 10 - series.length * per) / 2;
+      el("line", { x1: X(x.lo), x2: X(x.hi), y1: y, y2: y, stroke: col, "stroke-width": 2, "stroke-linecap": "round" }, svg);
+      el("circle", { cx: X(x.d), cy: y, r: 4.5, fill: x.sig ? col : css("--surface"), stroke: col, "stroke-width": 2 }, svg);
+      const hit = el("rect", { x: X(x.lo) - 6, y: y - 6, width: Math.max(12, X(x.hi) - X(x.lo) + 12), height: 12, fill: "transparent" }, svg);
+      bindTip(hit, `<b>${esc(p)}</b><br>${esc(c)}: <b>${fmtP(x.d)}</b><br>95% CI ${fmtCI(x)}${x.sig ? "" : " (includes 0)"}` + (tipExtra ? tipExtra(p, c, x) : ""));
+    });
+  });
+  box.appendChild(svg);
+  const n = document.createElement("p"); n.className = "note";
+  n.textContent = "Filled dot: the 95% CI excludes zero. Hollow dot: the difference could be noise. Hover a mark for the absolute values.";
+  box.appendChild(n);
+}
+
+
+const TL = (t) => D.target_labels[t] || t;
+const targetColor = (t) => slot(D.targets.indexOf(t));
+const hwChip = () => (Object.fromEntries(D.meta.hardware).Chip || "");
+
+function renderStatic() {
+  $("title").textContent = D.meta.title;
+  $("subtitle").innerHTML = `Generated ${esc(D.meta.generated)} · harness <code>${esc(D.meta.harness_commit)}</code> · ` +
+    `${D.targets.length} targets × ${D.meta.configs.length} configs · data: <a href="data/summary.json">data/summary.json</a>`;
+  if (D.findings_md) { $("findings").innerHTML = md(D.findings_md); $("findings").hidden = false; }
+  $("hw").innerHTML = D.meta.hardware.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
+  $("sw").innerHTML = D.meta.software.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
+  $("method").innerHTML = D.meta.method.map((m) => `<li>${md(m).replace(/^<p>|<\/p>$/g, "")}</li>`).join("");
+  $("cfgtable").innerHTML = "<tr><th>Config</th><th>What it is</th><th>Env (fsc process)</th><th>runtimeconfig changes</th></tr>" + D.meta.configs.map((c) =>
+    `<tr><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:${configColor(c.id)}"></span><span class="mono">${esc(c.id)}</span></td><td>${esc(c.desc)}</td>` +
+    `<td class="mono">${esc(Object.entries(c.env).map(([k, v]) => `${k}=${v}`).join(" ") || "(none)")}</td><td class="mono">${esc(Object.entries(c.rc_changes || {}).map(([k, v]) => `${k}=${v}`).join(" ") || "–")}</td></tr>`).join("");
+  const V = D.verify, cols = D.verify_columns;
+  $("verTable").innerHTML = `<tr><th>Config</th>${cols.map(([, h]) => `<th class="num">${esc(h)}</th>`).join("")}</tr>` +
+    D.meta.configs.map((c) => `<tr><td class="mono">${esc(c.id)}</td>${cols.map(([k]) => `<td class="num">${esc((V[c.id] || {})[k] ?? "–")}</td>`).join("")}</tr>`).join("");
+}
+
+const EFF_METRICS = ["wall_s", "cpu_s", "gc_pause_ms", "jit_time_ms", "maxrss_mb"];
+let effMetric = "wall_s";
+function renderEffect() {
+  const seg = $("effSeg"); seg.innerHTML = "";
+  for (const k of EFF_METRICS) {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = M[k].label;
+    b.setAttribute("aria-pressed", k === effMetric); b.onclick = () => { effMetric = k; renderEffect(); };
+    seg.appendChild(b);
+  }
+  const k = effMetric, cfgs = D.meta.configs.map((c) => c.id).filter((c) => c !== REF);
+  const targets = D.targets.filter((t) => cfgs.some((c) => ((D.cmp[t] || {})[c] || {})[k]));
+  const rows = cfgs.map((c) => [c, targets.map((t) => ((D.cmp[t] || {})[c] || {})[k])]).filter(([, xs]) => xs.some(Boolean));
+  const box = $("figEffect");
+  if (!rows.length) { box.innerHTML = `<div class="empty">No data for this metric.</div>`; $("effTable").innerHTML = ""; return; }
+  const labels = targets.map(TL), colorOf = (l) => targetColor(targets[labels.indexOf(l)]);
+  drawForest(box, rows, labels, colorOf, `${M[k].label}: change vs base, per config`,
+    `${hwChip()} · base = DOTNET_TieredPGO=0 + DOTNET_TC_CallCountingDelayMs=0, parallel compilation on · median, 95% bootstrap CI`,
+    "median(config) / median(base) − 1 (negative = lower)",
+    (c, l) => { const t = targets[labels.indexOf(l)], a = (((D.stats[t] || {})[REF] || {})[k]), b = (((D.stats[t] || {})[c] || {})[k]); return a && b ? `<br>base ${fmtV(a.median, k)} → ${fmtV(b.median, k)}` : ""; });
+  const cell = (x) => x ? `<td class="num ${x.sig ? (x.d < 0 ? "faster sig" : "slower sig") : ""}">${fmtP(x.d)}<br><span class="sub">${fmtCI(x)}</span></td>` : `<td class="num">–</td>`;
+  $("effTable").innerHTML = `<tr><th>Config</th>${targets.map((t) => `<th class="num">${esc(TL(t))}</th>`).join("")}</tr>` +
+    `<tr><td class="mono">${esc(REF)} (median)</td>${targets.map((t) => `<td class="num">${fmtV((((D.stats[t] || {})[REF] || {})[k] || {}).median, k)}</td>`).join("")}</tr>` +
+    cfgs.map((c) => `<tr><td class="mono">${esc(c)}</td>${targets.map((t) => cell(((D.cmp[t] || {})[c] || {})[k])).join("")}</tr>`).join("");
+}
+
+function gridSources() {
+  return [{ id: 1, src: () => ({
+    name: "Phase 3", cells: D.meta.configs.map((c) => c.id), projects: D.targets, metrics: D.metrics.map((m) => m.key), runs: D.runs_label,
+    label: (c) => c, color: configColor, light: () => false, lightNote: "",
+    get: (p, c, k) => ((D.stats[p] || {})[c] || {})[k],
+    delta: (p, c, k) => (c === REF ? null : { x: ((D.cmp[p] || {})[c] || {})[k], vs: REF }),
+  }) }];
+}
+
+const G = { ds: 1, cells: {}, projects: {}, metrics: new Set(["wall_s", "cpu_s", "gc_pause_ms", "jit_time_ms"]), scale: "cell" };
+function renderGridControls() {
+  const srcs = gridSources(), seg = $("gDsSeg");
+  if (!srcs.some((x) => x.id === G.ds)) G.ds = srcs[0].id;
+  seg.innerHTML = ""; seg.closest(".row").hidden = srcs.length < 2;
+  for (const x of srcs) {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = x.src().name;
+    b.setAttribute("aria-pressed", G.ds === x.id); b.onclick = () => { G.ds = x.id; renderGrid(); };
+    seg.appendChild(b);
+  }
+  const S = srcs.find((x) => x.id === G.ds).src();
+  G.cells[G.ds] = G.cells[G.ds] || new Set(S.cells);
+  G.projects[G.ds] = G.projects[G.ds] || new Set(S.projects);
+  const cs = G.cells[G.ds], ps = G.projects[G.ds];
+  const toggle = (set, x) => () => { set.has(x) ? set.delete(x) : set.add(x); renderGrid(); };
+  const cc = $("gCfgChips"); cc.innerHTML = "";
+  for (const c of S.cells) chip(cc, c, S.label(c), cs.has(c), S.color(c), toggle(cs, c));
+  const mc = $("gMetChips"); mc.innerHTML = "";
+  for (const m of D.metrics.filter((m) => S.metrics.includes(m.key))) chip(mc, m.key, m.label.replace(/^Phase: /, "phase: "), G.metrics.has(m.key), css("--muted"), toggle(G.metrics, m.key), m.group);
+  const pc = $("gProjChips"); pc.innerHTML = "";
+  for (const p of S.projects) chip(pc, p, p.replace("__", " · "), ps.has(p), css("--muted"), toggle(ps, p));
+  $("gmAll").onclick = () => { S.metrics.forEach((k) => G.metrics.add(k)); renderGrid(); };
+  $("gmNone").onclick = () => { G.metrics.clear(); renderGrid(); };
+  $("gmDef").onclick = () => { G.metrics = new Set(["wall_s", "cpu_s", "gc_pause_ms", "jit_time_ms"]); renderGrid(); };
+  $("gpAll").onclick = () => { G.projects[G.ds] = new Set(S.projects); renderGrid(); };
+  $("gpNone").onclick = () => { G.projects[G.ds] = new Set(); renderGrid(); };
+  $("gpTop").onclick = () => { G.projects[G.ds] = new Set(S.projects.slice(0, 5)); renderGrid(); };
+  $("gScCell").setAttribute("aria-pressed", G.scale === "cell"); $("gScCol").setAttribute("aria-pressed", G.scale === "col");
+  $("gScCell").onclick = () => { G.scale = "cell"; renderGrid(); };
+  $("gScCol").onclick = () => { G.scale = "col"; renderGrid(); };
+  return S;
+}
+function renderGrid() {
+  const S = renderGridControls();
+  const box = $("figGrid"); box.innerHTML = "";
+  const cells = S.cells.filter((c) => G.cells[G.ds].has(c));
+  const projects = S.projects.filter((p) => G.projects[G.ds].has(p));
+  const metrics = D.metrics.filter((m) => S.metrics.includes(m.key) && G.metrics.has(m.key));
+  if (!cells.length || !projects.length || !metrics.length) { box.innerHTML = `<div class="empty">Pick at least one config, one metric and one compilation.</div>`; return; }
+  const top_ = (s) => (s.q3 != null ? Math.max(s.q3, s.median) : s.median);
+  const num = (v, k) => fmtV(v, k).replace(/ \S+$/, M[k].unit ? "" : "$&");
+  const bh = 12, bgap = 3, padY = 9, colW = 230, labW = 62;
+  const rowH = Math.max(34, cells.length * (bh + bgap) - bgap + 2 * padY);
+  const left = Math.min(320, 24 + Math.max(...projects.map((p) => p.split("__")[0].length)) * 6.8);
+  const W = left + metrics.length * colW + 8;
+  const hw = Object.fromEntries(D.meta.hardware);
+  const title = `${S.name}: ${metrics.length} metric${metrics.length === 1 ? "" : "s"} × ${projects.length} compilation${projects.length === 1 ? "" : "s"}`;
+  const sub = `${hw.Chip || ""} · median of ${S.runs} runs per cell · bars start at zero · ${G.scale === "cell" ? "each cell has its own scale" : "one scale per metric column"}`;
+  const svg = el("svg", { viewBox: `0 0 ${W} 100`, role: "img", "aria-label": title });
+  svg.style.minWidth = `${Math.round(W * 0.8)}px`;
+  const legend = [...cells.map((c) => ({ label: S.label(c), color: S.color(c), kind: "rect", light: S.light(c) })), { label: "q1–q3", kind: "whisker" }];
+  const top = frame(svg, W - 10, title, sub, legend) + 4;
+  const gridTop = top + 26, H = gridTop + projects.length * rowH + 8;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const colMax = {};
+  for (const m of metrics) colMax[m.key] = Math.max(0, ...projects.flatMap((p) => cells.map((c) => { const s = S.get(p, c, m.key); return s ? top_(s) : 0; })));
+  projects.forEach((p, j) => { if (j % 2 === 0) el("rect", { x: 0, y: gridTop + j * rowH, width: W, height: rowH, fill: css("--band") }, svg); });
+  metrics.forEach((m, i) => {
+    const x0 = left + i * colW, maxCh = Math.floor((colW - 12) / 6.6);
+    const lab = m.label.replace(/^Phase: /, "phase: ") + (m.unit ? ` (${m.unit})` : "");
+    const t = text(svg, x0 + 8, gridTop - 9, lab.length > maxCh ? lab.slice(0, maxCh - 1) + "…" : lab, { "font-size": 12, "font-weight": 600, fill: css("--ink") });
+    el("title", {}, t).textContent = lab;
+    el("line", { x1: x0, x2: x0, y1: gridTop - 24, y2: H - 4, stroke: css("--grid") }, svg);
+  });
+  projects.forEach((p, j) => {
+    const y0 = gridTop + j * rowH, [name, tfm] = p.split("__");
+    text(svg, left - 12, y0 + rowH / 2 - 1, name, { "text-anchor": "end", fill: css("--ink") });
+    if (tfm) text(svg, left - 12, y0 + rowH / 2 + 13, tfm, { "text-anchor": "end", fill: css("--muted"), "font-size": 10.5 });
+    metrics.forEach((m, i) => {
+      const k = m.key, x0 = left + i * colW + 8, area = colW - labW - 16;
+      const max = G.scale === "cell" ? Math.max(0, ...cells.map((c) => { const s = S.get(p, c, k); return s ? top_(s) : 0; })) : colMax[k];
+      const X = (v) => x0 + (max > 0 ? (Math.max(0, v) / max) * area : 0);
+      cells.forEach((c, ci) => {
+        const s = S.get(p, c, k), y = y0 + (rowH - (cells.length * (bh + bgap) - bgap)) / 2 + ci * (bh + bgap);
+        if (!s) { text(svg, x0, y + bh - 2, "–", { fill: css("--muted"), "font-size": 10.5 }); return; }
+        const col = S.color(c), light = S.light(c);
+        el("rect", { x: x0, y, width: Math.max(1, X(s.median) - x0), height: bh, rx: 1.5, fill: col, "fill-opacity": light ? 0.35 : 0.9, stroke: col, "stroke-width": light ? 1 : 0 }, svg);
+        let end = X(s.median);
+        if (s.q1 != null && s.q3 != null) {
+          const yc = y + bh / 2;
+          el("line", { x1: X(s.q1), x2: X(s.q3), y1: yc, y2: yc, stroke: css("--ink"), "stroke-width": 1.2 }, svg);
+          for (const v of [s.q1, s.q3]) el("line", { x1: X(v), x2: X(v), y1: yc - 3, y2: yc + 3, stroke: css("--ink"), "stroke-width": 1.2 }, svg);
+          end = Math.max(end, X(s.q3));
+        }
+        text(svg, end + 5, y + bh - 2, num(s.median, k), { fill: css("--ink2"), "font-family": css("--f-mono"), "font-size": 10.5 });
+        const dl = S.delta(p, c, k);
+        const dTxt = dl && dl.x ? `<br>${fmtP(dl.x.d)} vs ${esc(dl.vs)}${dl.x.lo != null ? ` (95% CI ${fmtCI(dl.x)})` : ""}${dl.x.sig === false ? ", not significant" : ""}` : "";
+        const hit = el("rect", { x: x0 - 4, y: y - 1, width: colW - 8, height: bh + 2, fill: "transparent" }, svg);
+        bindTip(hit, `<b>${esc(p)}</b><br>${esc(S.label(c))} · ${esc(m.label)}<br>median <b>${fmtV(s.median, k)}</b>` +
+          (s.q1 != null ? `<br>q1–q3 ${fmtV(s.q1, k)} – ${fmtV(s.q3, k)} · n=${s.n}` : "") + dTxt);
+      });
+    });
+  });
+  box.appendChild(svg);
+  const n = document.createElement("p"); n.className = "note";
+  n.textContent = `Bar = median, whisker = q1 to q3. ${S.lightNote} ${G.scale === "cell" ? "Each cell is scaled to its own largest bar, so compare configs within a cell, not across cells." : "Bars in a column share one scale."}`.replace(/\s+/g, " ");
+  box.appendChild(n);
+}
+
+
+function renderQuality() {
+  const li = D.quality.map((q) => `<li><b>${esc(TL(q.target))}:</b> ${q.flagged} of ${q.n} runs flagged.</li>`);
+  li.push(`<li><b>Flag rule, fsc runs:</b> ${esc(D.meta.flag_rule)}.</li>`);
+  li.push(`<li><b>Flag rule, whole builds:</b> ${esc(D.meta.build_flag_rule)}.</li>`);
+  $("quality").innerHTML = `<ul>${li.join("")}</ul>`;
+}
+
+function renderAll() { renderEffect(); renderGrid(); }
+renderStatic(); renderQuality(); renderAll();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+</script>
+</body>
+</html>
