@@ -147,6 +147,23 @@ button:focus-visible, select:focus-visible, .chip:focus-within { outline: 2px so
     <div class="tablebox"><table id="cfgtable"></table></div>
   </section>
 
+  <section style="display:flex;flex-direction:column;gap:14px" id="sdkSection" hidden>
+    <h2>Do the flags behave differently on SDK 10 and SDK 11?</h2>
+    <div class="prose">
+      <ul>
+        <li>These are the compilers as shipped in each SDK, with no changes to SDK files, run on the same captured compilations.</li>
+        <li>The flags are set as env vars on the fsc process. Configs are interleaved in shuffled rounds.</li>
+      </ul>
+    </div>
+    <div class="row"><label class="lbl">Metric</label>
+      <div class="seg" id="sdkSeg"><button type="button" id="sdkW" aria-pressed="true">Wall time</button><button type="button" id="sdkC" aria-pressed="false">CPU time</button></div></div>
+    <div class="fig" id="figSdk"></div>
+    <div class="tablebox"><table id="sdkTotals"></table></div>
+    <h3 id="bbTitle">Whole <code>dotnet build</code></h3>
+    <div class="prose" id="bbProse"></div>
+    <div class="tablebox"><table id="bbTable"></table></div>
+  </section>
+
   <section style="display:flex;flex-direction:column;gap:16px" id="explorer">
     <h2>Results explorer</h2>
     <div class="bar" role="region" aria-label="Filters">
@@ -387,15 +404,20 @@ function cmpTitle() {
 
 // ------------------------------------------------------------ charts
 function forest() {
-  const box = $("figForest"); box.innerHTML = "";
+  const box = $("figForest");
   const series = cmpSeries(), projects = viewProjects(), k = state.metric;
   const rows = projects.map((p) => [p, series.map((c) => cmpOf(p, c, k))]).filter(([, xs]) => xs.some(Boolean));
   if (!rows.length || !series.length) { box.innerHTML = `<div class="empty">No comparison for this selection (pick at least one compilation and one non-baseline config).</div>`; return; }
   const [title, xlab] = cmpTitle();
+  drawForest(box, rows, series, configColor, title, subtitleBase(), xlab, (p, c, x) => tipAbs(p, c, k));
+}
+// Generic forest plot: rows = [[label, [cmp per series]]], cmp = {d, lo, hi, sig}. Title + legend live inside the SVG.
+function drawForest(box, rows, series, colorOf, title, sub, xlab, tipExtra) {
+  box.innerHTML = "";
   const maxLabel = Math.max(...rows.map(([p]) => p.replace("__", " · ").length));
   const W = 1000, left = Math.min(460, 24 + maxLabel * 7), right = 40, per = 13, rowH = Math.max(24, series.length * per + 10);
   const svg = el("svg", { viewBox: `0 0 ${W} 100`, role: "img", "aria-label": title });
-  const top = frame(svg, W - 10, title, subtitleBase(), [...series.map((c) => ({ label: c, color: configColor(c) })), { label: "hollow = 95% CI includes 0", kind: "hollow" }]) + 6;
+  const top = frame(svg, W - 10, title, sub, [...series.map((c) => ({ label: c, color: colorOf(c) })), { label: "hollow = 95% CI includes 0", kind: "hollow" }]) + 6;
   const H = top + rowH * rows.length + 46;
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   let lo = 0, hi = 0;
@@ -415,11 +437,11 @@ function forest() {
     text(svg, left - 12, y0 + rowH / 2 + 4, p.replace("__", " · "), { "text-anchor": "end", fill: css("--ink") });
     xs.forEach((x, j) => {
       if (!x) return;
-      const c = series[j], col = configColor(c), y = y0 + 5 + per / 2 + j * per + (rowH - 10 - series.length * per) / 2;
+      const c = series[j], col = colorOf(c), y = y0 + 5 + per / 2 + j * per + (rowH - 10 - series.length * per) / 2;
       el("line", { x1: X(x.lo), x2: X(x.hi), y1: y, y2: y, stroke: col, "stroke-width": 2, "stroke-linecap": "round" }, svg);
       el("circle", { cx: X(x.d), cy: y, r: 4.5, fill: x.sig ? col : css("--surface"), stroke: col, "stroke-width": 2 }, svg);
       const hit = el("rect", { x: X(x.lo) - 6, y: y - 6, width: Math.max(12, X(x.hi) - X(x.lo) + 12), height: 12, fill: "transparent" }, svg);
-      bindTip(hit, `<b>${esc(p)}</b><br>${esc(c)}: <b>${fmtP(x.d)}</b><br>95% CI ${fmtCI(x)}${x.sig ? "" : " (includes 0)"}` + tipAbs(p, c, k));
+      bindTip(hit, `<b>${esc(p)}</b><br>${esc(c)}: <b>${fmtP(x.d)}</b><br>95% CI ${fmtCI(x)}${x.sig ? "" : " (includes 0)"}` + (tipExtra ? tipExtra(p, c, x) : ""));
     });
   });
   box.appendChild(svg);
@@ -592,7 +614,46 @@ function quality() {
     : `<tr><td class="empty">No overhead measurement in this data set.</td></tr>`;
 }
 
+const SDK_NAMES = { sdk10: "SDK 10.0.302 (fsc 15.2.302, .NET 10.0.10)", sdk11: "SDK 11 RC1 (fsc 15.2.101, .NET 11 RC1)", main: "main @ 99406265 (R2R layout, .NET 11 RC1)" };
+const sdkColor = (c) => slot({ sdk10: 0, sdk11: 1, main: 2 }[c] ?? 3);
+let sdkMetric = "wall_s";
+function renderSdk() {
+  const S = D.sdk_compare;
+  if (!S || (!S.fsc && !S.build)) return;
+  $("sdkSection").hidden = false;
+  const F = S.fsc;
+  if (F) {
+    const comps = ["sdk10", "sdk11", "main"].filter((c) => F.total[c]);
+    const k = sdkMetric, lab = M[k].label;
+    const rows = F.projects.map((p) => [p, comps.map((c) => ((F.per_project[p] || {})[c] || {})[k])]);
+    const hw = Object.fromEntries(D.meta.hardware);
+    drawForest($("figSdk"), rows, comps, sdkColor, `${lab}: effect of DOTNET_TieredPGO=0 + DOTNET_TC_CallCountingDelayMs=0, per compiler`,
+      `${hw.Chip || ""} · shipped SDK compilers on identical inputs · median, 95% bootstrap CI`, "median(flags) / median(none) − 1 (negative = lower)",
+      (p, c) => { const r = (F.per_project[p] || {})[c]; return r ? `<br>none ${fmtV(r.median_none[k], k)} → flags ${fmtV(r.median_flags[k], k)}` : ""; });
+    $("sdkTotals").innerHTML = `<tr><th>Compiler</th><th class="num">Wall, no flags</th><th class="num">Wall, flags</th><th class="num">Δ wall</th><th class="num">Δ CPU</th></tr>` +
+      comps.map((c) => { const x = F.total[c]; return `<tr><td><span class="mono">${c}</span> · ${esc(SDK_NAMES[c] || "")}</td><td class="num">${x.wall_s.ref.toFixed(1)} s</td><td class="num">${x.wall_s.val.toFixed(1)} s</td>
+        <td class="num ${x.wall_s.sig ? (x.wall_s.d < 0 ? "faster sig" : "slower sig") : ""}">${fmtP(x.wall_s.d)} (${fmtCI(x.wall_s)})</td>
+        <td class="num ${x.cpu_s.sig ? (x.cpu_s.d < 0 ? "faster sig" : "slower sig") : ""}">${fmtP(x.cpu_s.d)} (${fmtCI(x.cpu_s)})</td></tr>`; }).join("") +
+      `<tr><td colspan="5" class="sub">Sum of per-compilation medians over ${F.projects.length} compilations · ${F.n_runs} runs, ${F.n_flagged} host-flagged.</td></tr>`;
+  }
+  const BB = S.build;
+  if (BB) {
+    $("bbTitle").innerHTML = `Whole <code>dotnet build</code>: Fantomas @ <code>${esc((BB.commit || "").slice(0, 9))}</code>`;
+    $("bbProse").innerHTML = `<ul><li><b>none</b>: <code>dotnet build -c Release --no-restore --no-incremental -nodeReuse:false</code></li>
+      <li><b>env_all</b>: the two flags set on <code>dotnet build</code>. This affects MSBuild and every fsc.</li>
+      <li><b>env_fsc</b>: the flags on fsc processes only (wrapper). MSBuild keeps its defaults.</li>
+      <li>Build servers are shut down before each run, and the modes are interleaved in shuffled rounds (${BB.n_runs} runs).</li></ul>`;
+    const cell = (x) => x ? `<td class="num ${x.sig ? (x.d < 0 ? "faster sig" : "slower sig") : ""}">${fmtP(x.d)} (${fmtCI(x)})</td>` : `<td class="num">–</td>`;
+    $("bbTable").innerHTML = `<tr><th>SDK</th><th class="num">none: wall</th><th class="num">none: CPU</th><th class="num">env_all: Δ wall</th><th class="num">env_all: Δ CPU</th><th class="num">env_fsc: Δ wall</th><th class="num">env_fsc: Δ CPU</th></tr>` +
+      Object.entries(BB.per_sdk).map(([sdk, r]) => `<tr><td class="mono">${esc(sdk)}</td><td class="num">${r.none.wall_s.toFixed(1)} s</td><td class="num">${r.none.cpu_s.toFixed(1)} s</td>` +
+        ["env_all", "env_fsc"].flatMap((m) => ["wall_s", "cpu_s"].map((k) => cell((r[m] || {})[k]))).join("") + `</tr>`).join("");
+  }
+}
+$("sdkW").onclick = () => { sdkMetric = "wall_s"; $("sdkW").setAttribute("aria-pressed", true); $("sdkC").setAttribute("aria-pressed", false); renderSdk(); };
+$("sdkC").onclick = () => { sdkMetric = "cpu_s"; $("sdkC").setAttribute("aria-pressed", true); $("sdkW").setAttribute("aria-pressed", false); renderSdk(); };
+
 function renderAll() {
+  renderSdk();
   renderChips(); tiles(); forest(); phases(); tiers(); strips(); numTable();
 }
 renderStatic(); renderControls(); quality(); renderAll();

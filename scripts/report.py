@@ -326,6 +326,14 @@ def main():
                               flags=flags_out(fl2, p2, cells2), runs=meta2["runs"], warmup=meta2["warmup"],
                               meta=dict(start=meta2["start"], end=meta2.get("end"), argv=meta2["argv"]))
 
+    # SDK 10 vs SDK 11 vs main (fsc level) and whole-`dotnet build` results; computed by analyze_sdk_compare.py
+    if (res / "sdk_compare" / "runs.jsonl").exists() or (res / "buildbench" / "runs.jsonl").exists():
+        import contextlib, io
+        import analyze_sdk_compare
+        with contextlib.redirect_stdout(io.StringIO()):
+            analyze_sdk_compare.main()
+        sc = res / "sdk_compare" / "summary.json"
+        data["sdk_compare"] = json.loads(sc.read_text()) if sc.exists() else None
     data["traces"] = load_traces(res / "traces" / "traces.jsonl")
     data["overhead"] = load_overhead(rng, res / "overhead")
     fp = out / "findings.md"

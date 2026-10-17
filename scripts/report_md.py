@@ -239,6 +239,52 @@ def write(data, out: Path):
             L.append(f"| {p} | " + " | ".join(pct(p2['par_eff'].get(p, {}).get(c, {}).get('wall_s')) for c in jit) + " |")
         L += [""]
 
+    # ---- SDK comparison and whole-build test
+    sc = data.get("sdk_compare") or {}
+    fsc = sc.get("fsc")
+    if fsc:
+        comps = [c for c in ("sdk10", "sdk11", "main") if c in fsc["total"]]
+        names = {"sdk10": "SDK 10.0.302 (fsc 15.2.302, .NET 10.0.10)", "sdk11": "SDK 11 RC1 (fsc 15.2.101, .NET 11 RC1)",
+                 "main": "main @ 99406265, SDK-like R2R layout (.NET 11 RC1)"}
+        L += ["## Do the flags behave differently on SDK 10 and SDK 11?", "",
+              "The compilers as shipped in each SDK (no changes to SDK files), run on the same captured compilations. "
+              "The flags are set as env vars on the fsc process, and configs are interleaved.", "",
+              "Compilers:", ""] + [f"- `{c}`: {names[c]}" for c in comps] + [
+              "", f"### All measured compilations together ({len(fsc['projects'])} compilations, sum of medians)", "",
+              "| compiler | wall, no flags | wall, flags | Δ wall | Δ CPU |", "|---|---:|---:|---|---|"]
+        for c in comps:
+            x = fsc["total"][c]
+            L.append(f"| `{c}` | {x['wall_s']['ref']:.1f} s | {x['wall_s']['val']:.1f} s | {pct(x['wall_s'])} | {pct(x['cpu_s'])} |")
+        L += [""]
+        sc_cols = {"sdk10": SLOTS[0], "sdk11": SLOTS[1], "main": SLOTS[2]}
+        for k, lab in (("wall_s", "Wall time"), ("cpu_s", "CPU time")):
+            rows = [(p, {c: fsc["per_project"][p].get(c, {}).get(k) for c in comps}) for p in fsc["projects"]]
+            fn = f"img/sdk_flags_{k}.png"
+            forest_png(out / fn, rows, comps, sc_cols, f"{lab}: effect of the two flags, per compiler",
+                       f"DOTNET_TieredPGO=0 + DOTNET_TC_CallCountingDelayMs=0 vs none · {chip} · median, 95% bootstrap CI",
+                       f"{lab}: median(flags)/median(none) − 1 (negative = faster)")
+            L += [f"![{lab} effect of flags per compiler]({fn})", ""]
+        L += ["| compilation | " + " | ".join(f"`{c}` no flags" for c in comps) + " | " +
+              " | ".join(f"`{c}` Δ wall" for c in comps) + " |", "|---|" + "---:|" * len(comps) + "---|" * len(comps)]
+        for p in fsc["projects"]:
+            r = fsc["per_project"][p]
+            L.append(f"| {p} | " + " | ".join(f"{r[c]['median_none']['wall_s']:.2f} s" if c in r else "–" for c in comps) + " | " +
+                     " | ".join(pct(r.get(c, {}).get("wall_s")) for c in comps) + " |")
+        L += [""]
+    bb = sc.get("build")
+    if bb:
+        L += [f"## Whole `dotnet build` (Fantomas @ `{(bb.get('commit') or '')[:9]}`, 12 projects)", "",
+              "- `none`: plain `dotnet build -c Release --no-restore --no-incremental -nodeReuse:false`.",
+              "- `env_all`: `DOTNET_TieredPGO=0 DOTNET_TC_CallCountingDelayMs=0 dotnet build ...`. This affects MSBuild and every fsc.",
+              "- `env_fsc`: the same flags on fsc processes only, applied through a wrapper. MSBuild keeps its defaults.",
+              "- Build servers are shut down before every run, and the modes are interleaved in shuffled rounds.", "",
+              "| SDK | none: wall | none: CPU | env_all: Δ wall | env_all: Δ CPU | env_fsc: Δ wall | env_fsc: Δ CPU |",
+              "|---|---:|---:|---|---|---|---|"]
+        for sdk, row in bb["per_sdk"].items():
+            L.append(f"| {sdk} | {row['none']['wall_s']:.1f} s | {row['none']['cpu_s']:.1f} s | " +
+                     " | ".join(pct(row.get(m, {}).get(k)) for m in ("env_all", "env_fsc") for k in ("wall_s", "cpu_s")) + " |")
+        L += [""]
+
     # ---- measurement quality
     L += ["## Measurement quality", ""]
     ov = data.get("overhead")
