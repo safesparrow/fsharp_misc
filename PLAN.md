@@ -229,3 +229,12 @@ Not tested: MIBC static PGO (needs dotnet-pgo and a trace pipeline), NativeAOT, 
 Verification: a second stats hook (layouts/hook2) also records GC.GetConfigurationVariables() and the runtime
 switches, so every config shows its knob took effect. The phase 1/2 hook is left untouched.
 Estimate: fsc-level ~35 min, Fantomas ~31 min, prep ~20 min, stage 2 ~15 min, report ~20 min: about 2 h.
+
+## Phase 3 STOPPED 2026-10-17 ~19:05 (user: "Stop the benchmarks")
+Quick pass complete and published (reports/phase3, artifact https://claude.ai/artifact/NcuNSG67V7MXjwinodHiJ7, findings
+marked preliminary). Full pass was partway: FSharp.Build done (20 runs/config, no datas_nonconc), FSharp.Core at 7/8
+(datas_nonconc partial), FCS and Fantomas still at the quick-pass counts (2). caffeinate released.
+To finish: `PASS=full ./scripts/run_phase3.sh fsc && PASS=full ./scripts/run_phase3.sh build`, then
+`.venv/bin/python scripts/report3.py`, update reports/phase3/findings.md (drop "preliminary", full-pass numbers,
+note datas_nonconc on FSharp.Build is not interleaved), republish the artifact from reports/phase3/report.html with
+files {"data/report-data.js": "reports/phase3/data/report-data.js"}.
