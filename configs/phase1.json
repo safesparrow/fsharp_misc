@@ -1,0 +1,8 @@
+[
+  {"id": "baseline",  "layout": "layouts/baseline",  "dotnet": "repos/baseline/.dotnet/dotnet", "env": {}},
+  {"id": "pgo0",      "layout": "layouts/baseline",  "dotnet": "repos/baseline/.dotnet/dotnet", "env": {"DOTNET_TieredPGO": "0"}},
+  {"id": "ccd0",      "layout": "layouts/baseline",  "dotnet": "repos/baseline/.dotnet/dotnet", "env": {"DOTNET_TC_CallCountingDelayMs": "0"}},
+  {"id": "pgo0_ccd0", "layout": "layouts/baseline",  "dotnet": "repos/baseline/.dotnet/dotnet", "env": {"DOTNET_TieredPGO": "0", "DOTNET_TC_CallCountingDelayMs": "0"}},
+  {"id": "jit_flags", "layout": "layouts/jit_flags", "dotnet": "repos/jit_flags/.dotnet/dotnet", "env": {"DOTNET_TieredPGO": "0", "DOTNET_TC_CallCountingDelayMs": "0"},
+   "env_source": "work/cmds/jit_flags/_raw/*.env: DOTNET_* vars the jit_flags Microsoft.FSharp.Targets injected into all 17 fsc invocations"}
+]
