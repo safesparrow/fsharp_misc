@@ -14,6 +14,8 @@ a { color: var(--accent); } li { margin-bottom: 8px; } .sub { color: var(--ink2)
 <body>
 <h1>F# compiler (fsc) benchmark reports</h1>
 <ul>
+  <li><a href="pr/report.html">Short report for the issue/PR: turn off tiered PGO and the call-counting delay</a> (<a href="pr/report.md">MD</a>)<br>
+    <span class="sub">.NET 11, parallel compilation on, newest TFM of each project; links to the full reports.</span></li>
   <li><a href="report.html">JIT flags and parallel compilation</a> (<a href="report.md">MD</a>)<br>
     <span class="sub">DOTNET_TieredPGO=0 + DOTNET_TC_CallCountingDelayMs=0 on all FSharp.Compiler.Service.slnx compilations, parallel compilation on/off, SDK 10 vs 11, whole Fantomas build.</span></li>
   <li><a href="phase3/report.html">Runtime knobs on top of the JIT flags</a> (<a href="phase3/report.md">MD</a>)<br>

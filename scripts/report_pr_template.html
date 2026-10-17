@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>fsc JIT Settings</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/*@STYLE*/
+/* PR report: left navigation + collapsible sections */
+.layout { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 36px; }
+nav.toc { position: sticky; top: 0; align-self: start; max-height: 100vh; overflow-y: auto; padding: 28px 0 16px; }
+nav.toc .eyebrow { margin-bottom: 10px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; counter-reset: s; }
+nav.toc li { counter-increment: s; }
+nav.toc a { display: block; padding: 4px 8px; border-radius: 5px; color: var(--ink2); text-decoration: none; font-size: .9rem; border-left: 2px solid transparent; }
+nav.toc ol a::before { content: counter(s) ". "; color: var(--muted); font-family: var(--f-mono); font-size: .8rem; }
+nav.toc a:hover { color: var(--ink); background: var(--band); }
+nav.toc a.current { color: var(--ink); border-left-color: var(--accent); background: var(--band); }
+nav.toc .ext { margin-top: 16px; display: flex; flex-direction: column; gap: 4px; font-size: .82rem; }
+nav.toc .ext button { align-self: flex-start; }
+main.wrap { max-width: none; margin: 0; }
+details.sec { border-top: 1px solid var(--grid); padding-top: 14px; scroll-margin-top: 12px; }
+details.sec > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 10px; }
+details.sec > summary::-webkit-details-marker { display: none; }
+details.sec > summary::before { content: "▸"; color: var(--muted); font-size: .9rem; transition: transform .15s; display: inline-block; width: 1em; }
+details.sec[open] > summary::before { transform: rotate(90deg); }
+details.sec > summary .hint { color: var(--muted); font-size: .8rem; font-weight: 400; }
+details.sec[open] > summary .hint { display: none; }
+details.sec > .body { display: flex; flex-direction: column; gap: 14px; padding: 14px 0 6px 1.6em; min-width: 0; }
+details.sub > summary { cursor: pointer; color: var(--ink2); font-weight: 500; }
+details.sub > .prose { margin-top: 8px; }
+pre.diff { margin: 0; padding: 12px 14px; overflow-x: auto; background: var(--surface); border: 1px solid var(--grid); border-radius: 6px; font: .8rem/1.5 var(--f-mono); }
+pre.diff .add { color: var(--good); } pre.diff .del { color: var(--bad); } pre.diff .hunk { color: var(--muted); }
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  nav.toc { position: static; max-height: none; padding-bottom: 0; }
+  details.sec > .body { padding-left: 0; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="toc" aria-label="Sections">
+    <div class="eyebrow">Contents</div>
+    <ol id="toc"></ol>
+    <div class="ext">
+      <span><button type="button" class="link" id="openAll">expand all</button><button type="button" class="link" id="closeAll">collapse all</button></span>
+      <a id="lnkFull" href="#">Full report</a>
+      <a id="lnkP3" href="#">Other runtime settings</a>
+      <a id="lnkMd" href="#">This report as Markdown</a>
+    </div>
+  </nav>
+  <main class="wrap">
+    <header>
+      <div class="eyebrow">dotnet/fsharp · performance · short report</div>
+      <h1 id="title"></h1>
+      <div class="sub" id="subtitle">Loading data…</div>
+    </header>
+    <div id="sections"></div>
+  </main>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script src="data/report-data.js"></script>
+<script>
+"use strict";
+const D = window.REPORT_DATA;
+const $ = (id) => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+if (!D) {
+  $("subtitle").textContent = "No data: data/report-data.js is missing. Run scripts/report_pr.py to generate it.";
+  throw new Error("REPORT_DATA missing");
+}
+
+//@SHARED_JS
+
+const L = D.meta.links, T = D.totals;
+const list = (xs) => md(xs.map((s) => "- " + s).join("\n"));
+const lab = (p) => p.replace("__", " · ");
+const sigCls = (x) => (x && x.sig ? (x.d < 0 ? "faster sig" : "slower sig") : "");
+const pctCell = (x) => x ? `<td class="num ${sigCls(x)}">${fmtP(x.d)}<br><span class="sub">${fmtCI(x)}</span></td>` : `<td class="num">–</td>`;
+const hwChip = () => Object.fromEntries(D.meta.hardware).Chip || "";
+const SUB = () => `${hwChip()} · .NET 11 RC1 · parallel compilation on · median, 95% bootstrap CI`;
+
+// ---------------------------------------------------------------- page skeleton
+function skeleton() {
+  $("title").textContent = D.meta.title;
+  $("subtitle").innerHTML = `Generated ${esc(D.meta.generated)} · ${D.projects.length} compilations · data: <a href="data/summary.json">data/summary.json</a>`;
+  $("lnkFull").href = L.full; $("lnkP3").href = L.phase3; $("lnkMd").href = L.this_md;
+  $("toc").innerHTML = D.sections.map(([id, t]) => `<li><a href="#${id}" data-id="${id}">${esc(t)}</a></li>`).join("");
+  $("sections").innerHTML = D.sections.map(([id, t, open], i) =>
+    `<details class="sec" id="${id}"${open ? " open" : ""}><summary><h2>${i + 1}. ${esc(t)}</h2><span class="hint">click to expand</span></summary><div class="body" id="body-${id}"></div></details>`).join("");
+}
+
+// ---------------------------------------------------------------- sections
+function sSummary() {
+  $("body-summary").innerHTML = `<div class="tiles" id="tiles"></div><div class="prose">${list(D.summary)}</div>
+    <details class="sub"><summary>Why it helps</summary><div class="prose">${list(D.why)}</div></details>`;
+  const tile = (k, label, x, abs) => `<div class="tile"><div class="k">${esc(label)}</div><div class="v ${sigCls(x)}">${fmtP(x.d)}</div><div class="ci">CI ${fmtCI(x)}</div><div class="ci">${abs}</div></div>`;
+  const b = D.build;
+  $("tiles").innerHTML = tile("w", `Wall time, all ${D.projects.length} compilations`, T.wall_s, `${T.wall_s.ref.toFixed(1)} s → ${T.wall_s.val.toFixed(1)} s`) +
+    tile("c", `CPU time, all ${D.projects.length} compilations`, T.cpu_s, `${T.cpu_s.ref.toFixed(1)} s → ${T.cpu_s.val.toFixed(1)} s`) +
+    tile("b", "Whole build (Fantomas), settings on fsc", b.env_fsc.wall_s, `defaults ${b.none.wall_s.toFixed(1)} s`);
+}
+function sChange() {
+  const lines = D.diff.split("\n").map((l) => `<span class="${l.startsWith("@@") ? "hunk" : l.startsWith("+") ? "add" : l.startsWith("-") ? "del" : ""}">${esc(l)}</span>`).join("\n");
+  $("body-change").innerHTML = `<div class="prose">${list(D.change)}</div><pre class="diff" aria-label="diff of src/fsc/fsc.targets">${lines}</pre>`;
+}
+function sResults() {
+  const body = $("body-results");
+  body.innerHTML = `<div class="fig" id="figChange"></div><div class="tablebox"><table id="resTable"></table></div>`;
+  const series = ["Wall time", "CPU time"], keys = ["wall_s", "cpu_s"];
+  const rows = D.projects.map((p) => [p, keys.map((k) => D.cmp[p].flags[k])]);
+  drawForest($("figChange"), rows, series, (s) => slot(series.indexOf(s)), "fsc with TieredPGO=false + CallCountingDelayMs=0: change vs defaults",
+    SUB(), "median(flags) / median(defaults) − 1 (negative = lower)",
+    (p, s) => { const k = keys[series.indexOf(s)]; return `<br>defaults ${fmtV(D.stats[p].baseline[k].median, k)} → ${fmtV(D.stats[p].flags[k].median, k)}`; });
+  $("resTable").innerHTML = `<tr><th>Compilation</th><th class="num">Defaults</th><th class="num">Flags</th><th class="num">Δ wall</th><th class="num">Δ CPU</th><th class="num">Δ JIT time</th><th class="num">Δ GC pause</th></tr>` +
+    D.projects.map((p) => `<tr><td>${esc(lab(p))}${D.small.includes(p) ? ' <span class="sub">(small)</span>' : ""}</td><td class="num">${fmtV(D.stats[p].baseline.wall_s.median, "wall_s")}</td><td class="num">${fmtV(D.stats[p].flags.wall_s.median, "wall_s")}</td>` +
+      ["wall_s", "cpu_s", "jit_time_ms", "gc_pause_ms"].map((k) => pctCell(D.cmp[p].flags[k])).join("") + `</tr>`).join("") +
+    `<tr><td><b>All ${D.projects.length}</b> (sum of medians)</td><td class="num">${T.wall_s.ref.toFixed(1)} s</td><td class="num">${T.wall_s.val.toFixed(1)} s</td>` +
+    ["wall_s", "cpu_s", "jit_time_ms", "gc_pause_ms"].map((k) => pctCell(T[k])).join("") + `</tr>`;
+}
+function sBuild() {
+  const b = D.build;
+  $("body-build").innerHTML = `<div class="prose"><p><code>dotnet build fantomas.slnx -c Release --no-incremental</code> (Fantomas <code>${esc(b.commit)}</code>, 12 projects) on SDK 11 RC1. ${b.n} interleaved runs per mode; build servers shut down before each run.</p></div>
+    <div class="tablebox"><table><tr><th>Settings applied to</th><th class="num">Wall</th><th class="num">Δ wall</th><th class="num">Δ CPU</th></tr>
+    <tr><td>nothing (defaults)</td><td class="num">${b.none.wall_s.toFixed(1)} s</td><td class="num"></td><td class="num"></td></tr>
+    <tr><td>fsc processes only (what this change does)</td><td class="num"></td>${pctCell(b.env_fsc.wall_s)}${pctCell(b.env_fsc.cpu_s)}</tr>
+    <tr><td><code>dotnet build</code> (MSBuild too)</td><td class="num"></td>${pctCell(b.env_all.wall_s)}${pctCell(b.env_all.cpu_s)}</tr></table></div>
+    <div class="prose"><p class="sub">Build CPU is measured system-wide and is noisy; neither CPU change is significant.</p></div>`;
+}
+function sWhere() {
+  const body = $("body-where");
+  body.innerHTML = `<div class="fig" id="figPhases"></div><div class="tablebox"><table id="whereTable"></table></div>`;
+  const segs = D.phase_segments;
+  const rows = ["baseline", "flags"].map((c) => [c === "baseline" ? "defaults" : "flags", segs.map((s) => D.projects.reduce((a, p) => a + ((D.stats[p][c][`phase:${s}`] || {}).median || 0), 0))]);
+  stackedChart($("figPhases"), `Compiler phases (--times), summed over ${D.projects.length} compilations`, SUB(), rows, segs, "seconds (sum of per-compilation medians)", slot);
+  const items = [["wall_s", "Wall time", 1], ["cpu_s", "CPU time", 1], ["jit_time_ms", "JIT time (all threads)", 1000], ["gc_pause_ms", "GC pause time", 1000]]
+    .concat(segs.map((s) => [`phase:${s}`, `Phase: ${s}`, 1])).filter(([k]) => T[k]);
+  $("whereTable").innerHTML = `<tr><th>All compilations, sum of medians</th><th class="num">Defaults</th><th class="num">Flags</th><th class="num">Δ</th></tr>` +
+    items.map(([k, n, sc]) => `<tr><td>${esc(n)}</td><td class="num">${(T[k].ref / sc).toFixed(1)} s</td><td class="num">${(T[k].val / sc).toFixed(1)} s</td>${pctCell(T[k])}</tr>`).join("");
+}
+function sSetup() {
+  const kv = (xs) => xs.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
+  $("body-setup").innerHTML = `<div class="cols"><div><h3 style="margin-bottom:8px">Hardware</h3><dl class="kv">${kv(D.meta.hardware)}</dl></div>
+    <div><h3 style="margin-bottom:8px">Software</h3><dl class="kv">${kv(D.meta.software)}</dl></div></div>
+    <div class="prose"><h3>Method</h3>${md(D.meta.method.map((s, i) => `${i + 1}. ${s}`).join("\n"))}</div>`;
+}
+function sQuality() {
+  const q = D.quality;
+  $("body-quality").innerHTML = `<div class="prose">${list([
+    `${q.flagged} of ${q.n} runs were flagged as disturbed by other activity on the machine (rule: ${q.rule}). Excluding them does not change the totals.`,
+    "The stats hook and `--times` cost about 2% to 3% wall in every config alike (not significant).",
+    "One machine: an 11-core Apple M3 Pro on macOS. Machines with more cores have more idle cores for the background tier-1 JIT, so gains on Linux x64 build machines may differ and are worth confirming.",
+    "Compilations are replayed one at a time. In a real build several run in parallel, which is why the whole-build gain is smaller."])}</div>`;
+}
+function sLinks() {
+  $("body-links").innerHTML = `<div class="prose">${list([
+    `Full report (all 17 compilations and TFMs, every metric, parallel compilation on/off, SDK 10 vs 11): [${L.full}](${L.full}) ([MD](${L.full_md}))`,
+    `Other runtime settings tried on top of these (GC modes, DATAS, MultiCoreJit, composite R2R): [${L.phase3}](${L.phase3}) ([MD](${L.phase3_md}))`,
+    `Scripts and raw data: [${L.repo}](${L.repo})`,
+    `Compiler change: [${L.branch}](${L.branch})`,
+    `This report as Markdown (for the issue or PR): [${L.this_md}](${L.this_md})`])}</div>`;
+}
+
+// ---------------------------------------------------------------- navigation: links open their section
+function openTarget(id, scroll) {
+  const el = id && document.getElementById(id);
+  if (!el) return;
+  for (let d = el.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) d.open = true;
+  if (scroll) el.scrollIntoView({ block: "start" });
+  markCurrent(id);
+}
+function markCurrent(id) {
+  for (const a of document.querySelectorAll("nav.toc a[data-id]")) a.classList.toggle("current", a.dataset.id === id);
+}
+function wireNav() {
+  for (const a of document.querySelectorAll('a[href^="#"]')) a.addEventListener("click", () => openTarget(a.getAttribute("href").slice(1), false));
+  addEventListener("hashchange", () => openTarget(location.hash.slice(1), true));
+  $("openAll").onclick = () => document.querySelectorAll("details").forEach((d) => (d.open = true));
+  $("closeAll").onclick = () => document.querySelectorAll("details.sec").forEach((d) => (d.open = false));
+  const io = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) markCurrent(e.target.id); }, { rootMargin: "0px 0px -70% 0px" });
+  document.querySelectorAll("details.sec").forEach((d) => io.observe(d));
+  // charts are drawn at full width only when visible: redraw a section's charts when it is opened
+  document.querySelectorAll("details.sec").forEach((d) => d.addEventListener("toggle", () => { if (d.open && DRAW[d.id]) DRAW[d.id](); }));
+}
+
+const DRAW = { summary: sSummary, change: sChange, results: sResults, build: sBuild, where: sWhere, setup: sSetup, quality: sQuality, links: sLinks };
+function renderAll() { for (const f of Object.values(DRAW)) f(); }
+skeleton(); renderAll(); wireNav();
+if (location.hash) openTarget(location.hash.slice(1), true);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+</script>
+</body>
+</html>

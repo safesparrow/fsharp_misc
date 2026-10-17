@@ -1,6 +1,6 @@
 # fsc runtime knobs on top of the JIT flags
 
-_Generated 2026-10-17 18:53 BST by `scripts/report3.py` (harness commit `f256c96`). Interactive version: `reports/phase3/report.html`. All numbers: `reports/phase3/data/summary.json`._
+_Generated 2026-10-17 19:21 BST by `scripts/report3.py` (harness commit `2b93784`). Interactive version: `reports/phase3/report.html`. All numbers: `reports/phase3/data/summary.json`._
 
 ## Summary (preliminary: quick pass)
 
@@ -57,7 +57,7 @@ Method:
 2. Each other config changes one thing on top of base (see the table below). `ccd10` sets both JIT settings in `fsc.runtimeconfig.json` instead of env vars (equivalent; it avoids the hex parsing of env values).
 3. fsc-level: the captured `FSharp.Compiler.Service.slnx` compilations, replayed in isolation: FCS net11.0, FSharp.Core netstandard2.0 (its first target framework) and FSharp.Build netstandard2.0 (small).
 4. Whole build: `dotnet build fantomas.slnx -c Release --no-incremental` on SDK 11 RC1, with each config's fsc (`DotnetFscCompilerPath`) and settings applied to fsc processes only, through a wrapper. MSBuild keeps its defaults.
-5. Runs per cell: 2–14, after 1 warm-up. Configs are interleaved in shuffled order every round. The warm-up also records the MultiCoreJit profile that the measured `mcj` runs use.
+5. Runs per cell: 2–20, after 1 warm-up. Configs are interleaved in shuffled order every round. The warm-up also records the MultiCoreJit profile that the measured `mcj` runs use.
 6. Host monitor and quiet-wait before every run, as in phases 1 and 2; disturbed runs are flagged, not dropped.
 
 | Config | What it is |
@@ -83,61 +83,61 @@ Method:
 
 | Config | FCS net11.0 | FSharp.Core ns2.0 | FSharp.Build ns2.0 | Fantomas build |
 |---|---|---|---|---|
-| `base` median (s) | 13.76 | 4.44 | 0.88 | 24.42 |
-| `ccd10` | **+17.3% (+13.7 to +21.0)** | **+48.7% (+45.8 to +49.9)** | **+14.3% (+12.5 to +15.6)** | **+7.5% (+6.0 to +9.1)** |
-| `datas_off` | **-4.5% (-6.0 to -2.9)** | **-2.5% (-3.5 to -1.1)** | **-10.4% (-11.7 to -9.0)** | **-2.6% (-3.0 to -2.2)** |
-| `gen0_256m` | **+40.1% (+35.0 to +45.2)** | **+28.4% (+26.9 to +31.9)** | **+6.1% (+3.7 to +7.1)** | **+4.6% (+3.9 to +5.4)** |
-| `gc_nonconc` | **-3.2% (-4.9 to -1.5)** | -0.2% (-2.6 to +0.8) | **-1.0% (-2.5 to -0.2)** | **-0.9% (-1.7 to -0.1)** |
-| `wks_gc` | **+113.1% (+110.0 to +116.4)** | **+35.7% (+33.4 to +37.7)** | **+13.3% (+11.4 to +14.4)** | **+14.0% (+13.4 to +14.7)** |
-| `heaps4` | **+7.8% (+6.2 to +9.5)** | +1.0% (-1.5 to +3.6) | **-10.8% (-12.2 to -10.0)** | **-1.8% (-3.1 to -0.5)** |
-| `tp_min16` | +0.7% (-0.9 to +2.3) | -0.2% (-1.7 to +1.8) | +0.1% (-1.5 to +1.2) | +0.2% (-0.9 to +1.2) |
-| `mcj` | -0.3% (-2.5 to +2.0) | +0.3% (-1.0 to +0.9) | -0.5% (-2.5 to +0.6) | **-1.5% (-2.2 to -0.8)** |
-| `r2r_composite` | **+3.3% (+1.2 to +5.5)** | **+7.8% (+5.7 to +8.5)** | **+15.0% (+12.7 to +16.4)** | **+5.5% (+5.1 to +6.0)** |
+| `base` median (s) | 13.76 | 4.46 | 0.89 | 24.42 |
+| `ccd10` | **+17.3% (+13.7 to +21.0)** | **+47.9% (+46.9 to +49.5)** | **+13.5% (+11.7 to +15.1)** | **+7.5% (+6.0 to +9.1)** |
+| `datas_off` | **-4.5% (-6.0 to -2.9)** | **-2.9% (-3.4 to -1.7)** | **-11.1% (-12.0 to -9.8)** | **-2.6% (-3.0 to -2.2)** |
+| `gen0_256m` | **+40.1% (+35.0 to +45.2)** | **+29.6% (+27.5 to +31.2)** | **+5.0% (+3.7 to +6.8)** | **+4.6% (+3.9 to +5.4)** |
+| `gc_nonconc` | **-3.2% (-4.9 to -1.5)** | -0.8% (-1.7 to +0.2) | **-1.7% (-2.9 to -0.4)** | **-0.9% (-1.7 to -0.1)** |
+| `wks_gc` | **+113.1% (+110.0 to +116.4)** | **+34.8% (+34.0 to +36.5)** | **+12.2% (+11.0 to +13.9)** | **+14.0% (+13.4 to +14.7)** |
+| `heaps4` | **+7.8% (+6.2 to +9.5)** | -0.1% (-1.1 to +2.0) | **-11.5% (-12.6 to -10.2)** | **-1.8% (-3.1 to -0.5)** |
+| `tp_min16` | +0.7% (-0.9 to +2.3) | -0.0% (-0.9 to +1.3) | -0.6% (-1.6 to +1.0) | +0.2% (-0.9 to +1.2) |
+| `mcj` | -0.3% (-2.5 to +2.0) | -0.4% (-1.1 to +0.8) | -1.4% (-3.1 to +0.2) | **-1.5% (-2.2 to -0.8)** |
+| `r2r_composite` | **+3.3% (+1.2 to +5.5)** | **+7.1% (+5.9 to +8.3)** | **+14.1% (+12.7 to +16.0)** | **+5.5% (+5.1 to +6.0)** |
 
 **CPU time (user+sys)**: change vs base (95% CI); bold = CI excludes 0
 
 | Config | FCS net11.0 | FSharp.Core ns2.0 | FSharp.Build ns2.0 | Fantomas build |
 |---|---|---|---|---|
-| `base` median (s) | 71.61 | 12.23 | 2.32 | 110.21 |
-| `ccd10` | **+23.7% (+21.1 to +26.3)** | **+9.5% (+7.5 to +12.7)** | **-23.2% (-26.8 to -20.8)** | -8.1% (-17.1 to +0.9) |
-| `datas_off` | **-6.7% (-7.4 to -5.9)** | **-7.5% (-9.8 to -6.1)** | **-13.2% (-16.0 to -11.6)** | **-17.7% (-24.6 to -10.7)** |
-| `gen0_256m` | **-9.5% (-11.0 to -8.0)** | **-11.3% (-12.8 to -9.9)** | **-8.1% (-11.1 to -6.4)** | **-15.5% (-19.0 to -11.9)** |
-| `gc_nonconc` | **-3.8% (-5.8 to -1.8)** | **-3.6% (-6.4 to -1.7)** | **-7.7% (-10.6 to -6.0)** | **-3.9% (-6.6 to -1.1)** |
-| `wks_gc` | **-9.5% (-10.9 to -8.0)** | **-13.8% (-15.3 to -12.1)** | **-7.0% (-10.0 to -5.2)** | **-15.6% (-22.1 to -9.0)** |
-| `heaps4` | **-13.4% (-14.7 to -12.1)** | **-15.3% (-17.7 to -10.3)** | **-16.8% (-19.7 to -15.2)** | **-11.6% (-20.1 to -3.2)** |
-| `tp_min16` | **+1.4% (+0.4 to +2.5)** | -0.6% (-5.1 to +2.2) | -1.1% (-4.4 to +1.8) | -6.1% (-12.3 to +0.1) |
-| `mcj` | -0.7% (-2.4 to +1.1) | -2.1% (-3.8 to +2.2) | +1.9% (-1.3 to +4.1) | **-12.7% (-14.5 to -10.8)** |
-| `r2r_composite` | **+3.4% (+0.9 to +6.0)** | **+12.1% (+9.3 to +16.2)** | **+15.8% (+12.1 to +18.8)** | +1.6% (-1.1 to +4.4) |
+| `base` median (s) | 71.61 | 12.23 | 2.33 | 110.21 |
+| `ccd10` | **+23.7% (+21.1 to +26.3)** | **+9.4% (+7.4 to +12.2)** | **-24.1% (-26.6 to -21.6)** | -8.1% (-17.1 to +0.9) |
+| `datas_off` | **-6.7% (-7.4 to -5.9)** | **-7.7% (-9.5 to -5.6)** | **-14.0% (-15.9 to -12.0)** | **-17.7% (-24.6 to -10.7)** |
+| `gen0_256m` | **-9.5% (-11.0 to -8.0)** | **-11.2% (-12.7 to -9.3)** | **-8.8% (-10.8 to -6.7)** | **-15.5% (-19.0 to -11.9)** |
+| `gc_nonconc` | **-3.8% (-5.8 to -1.8)** | **-3.4% (-5.3 to -1.2)** | **-8.3% (-10.5 to -6.3)** | **-3.9% (-6.6 to -1.1)** |
+| `wks_gc` | **-9.5% (-10.9 to -8.0)** | **-13.8% (-15.3 to -11.9)** | **-7.6% (-9.6 to -5.5)** | **-15.6% (-22.1 to -9.0)** |
+| `heaps4` | **-13.4% (-14.7 to -12.1)** | **-15.7% (-17.3 to -10.4)** | **-17.6% (-19.4 to -15.6)** | **-11.6% (-20.1 to -3.2)** |
+| `tp_min16` | **+1.4% (+0.4 to +2.5)** | -0.6% (-2.4 to +3.0) | -1.6% (-3.8 to +1.1) | -6.1% (-12.3 to +0.1) |
+| `mcj` | -0.7% (-2.4 to +1.1) | -1.4% (-3.8 to +2.1) | +1.4% (-0.8 to +4.4) | **-12.7% (-14.5 to -10.8)** |
+| `r2r_composite` | **+3.4% (+0.9 to +6.0)** | **+11.8% (+9.7 to +15.5)** | **+15.1% (+12.5 to +18.2)** | +1.6% (-1.1 to +4.4) |
 
 **GC pause time (total)**: change vs base (95% CI); bold = CI excludes 0
 
 | Config | FCS net11.0 | FSharp.Core ns2.0 | FSharp.Build ns2.0 |
 |---|---|---|---|
-| `base` median (ms) | 3245 | 527 | 91 |
-| `ccd10` | +4.6% (-1.3 to +10.6) | -3.0% (-7.2 to +0.1) | **-7.7% (-10.2 to -5.6)** |
-| `datas_off` | **-12.6% (-14.4 to -10.8)** | **-42.7% (-44.4 to -32.5)** | **-82.7% (-83.0 to -82.2)** |
-| `gen0_256m` | **+167.1% (+148.2 to +186.3)** | **+233.1% (+231.0 to +254.8)** | **+29.7% (+14.8 to +32.1)** |
-| `gc_nonconc` | **+8.8% (+7.1 to +10.5)** | **+10.6% (+3.7 to +15.0)** | **+14.6% (+12.5 to +16.6)** |
-| `wks_gc` | **+425.2% (+419.2 to +431.3)** | **+291.5% (+280.7 to +298.1)** | **+139.0% (+136.2 to +143.7)** |
-| `heaps4` | **+42.6% (+41.3 to +44.0)** | **+9.1% (+5.8 to +19.1)** | **-87.6% (-87.8 to -87.3)** |
-| `tp_min16` | -0.2% (-1.3 to +0.8) | +1.0% (-6.0 to +2.9) | -0.7% (-6.3 to +1.5) |
-| `mcj` | **-1.4% (-2.5 to -0.3)** | -4.4% (-8.4 to +0.3) | **-5.5% (-9.6 to -3.6)** |
-| `r2r_composite` | -2.4% (-5.4 to +0.8) | -7.2% (-9.5 to +0.9) | **-8.2% (-10.4 to -3.4)** |
+| `base` median (ms) | 3245 | 515 | 90 |
+| `ccd10` | +4.6% (-1.3 to +10.6) | -0.5% (-4.4 to +1.2) | **-6.5% (-9.3 to -5.1)** |
+| `datas_off` | **-12.6% (-14.4 to -10.8)** | **-40.2% (-42.7 to -34.0)** | **-82.6% (-82.9 to -82.2)** |
+| `gen0_256m` | **+167.1% (+148.2 to +186.3)** | **+254.1% (+238.1 to +261.2)** | **+31.3% (+23.4 to +33.4)** |
+| `gc_nonconc` | **+8.8% (+7.1 to +10.5)** | **+13.4% (+8.5 to +16.2)** | **+15.6% (+13.7 to +17.2)** |
+| `wks_gc` | **+425.2% (+419.2 to +431.3)** | **+301.3% (+290.1 to +306.7)** | **+140.7% (+137.2 to +144.4)** |
+| `heaps4` | **+42.6% (+41.3 to +44.0)** | **+10.4% (+3.6 to +18.2)** | **-87.6% (-87.9 to -87.3)** |
+| `tp_min16` | -0.2% (-1.3 to +0.8) | +2.6% (-4.0 to +4.8) | -0.3% (-2.4 to +2.0) |
+| `mcj` | **-1.4% (-2.5 to -0.3)** | -3.6% (-7.3 to +0.8) | **-5.6% (-10.5 to -3.7)** |
+| `r2r_composite` | -2.4% (-5.4 to +0.8) | **-4.5% (-8.1 to -0.7)** | **-7.4% (-9.8 to -3.6)** |
 
 **JIT time (all threads)**: change vs base (95% CI); bold = CI excludes 0
 
 | Config | FCS net11.0 | FSharp.Core ns2.0 | FSharp.Build ns2.0 |
 |---|---|---|---|
-| `base` median (ms) | 5651 | 3169 | 990 |
-| `ccd10` | **-6.7% (-10.8 to -2.4)** | **-42.5% (-44.5 to -40.7)** | **-81.4% (-81.8 to -80.9)** |
-| `datas_off` | **-8.3% (-11.8 to -4.7)** | **-8.7% (-11.0 to -4.7)** | **-9.8% (-11.4 to -9.3)** |
-| `gen0_256m` | **+49.5% (+40.1 to +59.3)** | **+20.4% (+15.8 to +25.1)** | **+6.1% (+3.8 to +6.9)** |
-| `gc_nonconc` | -2.8% (-6.0 to +0.5) | +0.6% (-0.8 to +3.7) | **-1.1% (-3.1 to -0.4)** |
-| `wks_gc` | **+92.5% (+88.4 to +96.7)** | **+24.5% (+21.4 to +28.7)** | **+12.2% (+10.1 to +12.8)** |
-| `heaps4` | -2.3% (-7.9 to +3.5) | -0.4% (-1.3 to +3.9) | **-10.2% (-11.8 to -9.6)** |
-| `tp_min16` | +2.5% (-0.8 to +5.9) | +1.5% (-0.1 to +4.7) | -0.3% (-2.1 to +1.0) |
-| `mcj` | -1.9% (-4.7 to +1.0) | +1.0% (-1.9 to +4.8) | -0.6% (-2.4 to +0.0) |
-| `r2r_composite` | **+3.2% (+0.8 to +5.6)** | **+3.9% (+1.8 to +9.9)** | **+8.3% (+6.0 to +9.5)** |
+| `base` median (ms) | 5651 | 3181 | 994 |
+| `ccd10` | **-6.7% (-10.8 to -2.4)** | **-42.7% (-44.3 to -42.1)** | **-81.4% (-81.7 to -81.0)** |
+| `datas_off` | **-8.3% (-11.8 to -4.7)** | **-9.6% (-11.0 to -8.3)** | **-10.5% (-11.6 to -9.5)** |
+| `gen0_256m` | **+49.5% (+40.1 to +59.3)** | **+18.7% (+16.0 to +20.6)** | **+4.9% (+3.8 to +6.3)** |
+| `gc_nonconc` | -2.8% (-6.0 to +0.5) | +0.1% (-1.2 to +0.8) | **-2.3% (-3.3 to -1.0)** |
+| `wks_gc` | **+92.5% (+88.4 to +96.7)** | **+23.8% (+21.0 to +24.7)** | **+11.5% (+10.3 to +12.5)** |
+| `heaps4` | -2.3% (-7.9 to +3.5) | +0.8% (-1.2 to +3.5) | **-10.7% (-11.8 to -9.8)** |
+| `tp_min16` | +2.5% (-0.8 to +5.9) | +1.2% (-1.3 to +1.8) | -0.8% (-2.2 to +0.6) |
+| `mcj` | -1.9% (-4.7 to +1.0) | -0.5% (-1.6 to +1.1) | **-1.1% (-2.2 to -0.2)** |
+| `r2r_composite` | **+3.2% (+0.8 to +5.6)** | **+3.5% (+1.8 to +5.4)** | **+7.5% (+6.1 to +8.8)** |
 
 ## Did each setting take effect?
 
@@ -159,8 +159,8 @@ Read inside each fsc process at exit by the stats hook (first measured run of ea
 ## Measurement quality
 
 - **FCS net11.0**: 0 of 20 runs flagged.
-- **FSharp.Core ns2.0**: 0 of 30 runs flagged.
-- **FSharp.Build ns2.0**: 3 of 137 runs flagged.
+- **FSharp.Core ns2.0**: 0 of 62 runs flagged.
+- **FSharp.Build ns2.0**: 5 of 200 runs flagged.
 - **Fantomas build**: 0 of 20 runs flagged.
 - Flag rule, fsc runs: foreign CPU > 1.0 core avg during the run, or host busy >= 1.0 core right before it, or any swapout, or > 5000 page compressions.
 - Flag rule, whole builds: host busy >= 1.0 core right before the build, or any swapout (build CPU is system-wide, so foreign CPU is not separable).
