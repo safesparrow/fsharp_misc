@@ -131,3 +131,49 @@ under each JIT config, on wall and CPU. Update both reports.
 - 2026-10-17: the user interrupted and used the box. The earlier overhead A/B was discarded and redone.
 - 2026-10-17: `scripts/run_all.sh all` started (nohup), log at work/logs/run_all.log. It's resumable: re-running skips
   recorded runs.
+
+## STOPPED 2026-10-17 (user: "stop gracefully, I'll resume elsewhere")
+
+### State when stopped
+- `results/phase1/runs.jsonl`: 310 runs. Complete for AssemblyCheck, FSharp.Build and FSharp.Compiler.Interactive.Settings
+  (5 configs x 20). DependencyManager.Nuget partial. No large compilations yet.
+- `results/phase2`, `results/traces`: not started.
+- `results/sdk_compare/runs.jsonl`: 86 runs (22 host-flagged). Complete for ComponentTests, TestTP and FCS.Tests. Not yet:
+  FCS netstandard2.0, FSharp.Core, the small ones. Partial summary: `results/sdk_compare/summary.json`.
+- `results/overhead`: complete (instrumentation cost about +2-3% wall).
+- Build-level benchmark (`scripts/buildbench.py` on Fantomas, SDK 10 vs 11, none/env_all/env_fsc): written, NOT run.
+  `repos/fantomas` is cloned @ f734124b (global.json pins 11 rc2 and still needs relaxing, see below).
+
+### User's question that triggered sdk_compare
+At work (Linux x64 AMD, 30 cores, 1 TB RAM, about 100 projects) the two flags gave 20-40% faster builds with LOWER CPU;
+a colleague saw 15-20% with `X=Y dotnet build`. My first message quoted -10% wall / +35% CPU, which was WRONG as a
+signal: it came only from 3 tiny (0.5-1 s), startup-dominated compilations.
+
+### Partial findings (fsc level, identical inputs, interleaved; 3 compilations of 5-9 s)
+| compiler | Δ wall with flags | Δ CPU with flags |
+|---|---|---|
+| SDK 10.0.302 fsc (F# 10, .NET 10.0.10) | -53% (CI -54 to -51) | -47% (-49 to -43) |
+| SDK 11 RC1 fsc (.NET 11 RC1) | -51% (-57 to -44) | -25% (-27 to -23) |
+| main @ 99406265 (R2R layout, .NET 11 RC1) | -42% (-46 to -38) | -22% (-24 to -20) |
+- So for medium compilations the flags help a lot on every compiler, with lower CPU, which matches the user's experience.
+  Tiny compilations are the exception (startup-dominated, extra JIT work without payoff).
+- SDK 10 gains more than SDK 11 / main. Without flags, the compilers are within noise to about 20% of each other,
+  depending on project. With flags, SDK 10 is the fastest of the three (main_flags is 6-26% slower than sdk10_flags).
+  This needs the full data before concluding.
+
+### To resume (on this machine, or elsewhere; do NOT mix results from different machines)
+1. If on a new machine, redo steps 1-4 of README.md (clones, builds, layouts, capture, tools). `work/` and `layouts/`
+   are not in git.
+2. SDK 10.0.302: `bash dotnet-install.sh --version 10.0.302 --install-dir work/sdks/dotnet10 --no-path`
+   (from https://dot.net/v1/dotnet-install.sh).
+3. Finish fsc-level SDK comparison: `scripts/run_sdk_compare.sh` (resumes), then `.venv/bin/python scripts/analyze_sdk_compare.py`.
+4. Build-level: in repos/fantomas, replace global.json with
+   `{"sdk":{"version":"10.0.100","rollForward":"latestMajor","allowPrerelease":true}}`, restore once per SDK
+   (`<dotnet_root>/dotnet restore fantomas.slnx`), then
+   `python3 scripts/buildbench.py --repo repos/fantomas --sln fantomas.slnx --sdks sdk10=work/sdks/dotnet10,sdk11=repos/baseline/.dotnet --out results/buildbench --runs 5 --warmup 1`.
+   Check first that both SDKs build it.
+5. Resume the main pipeline: `scripts/run_all.sh all` (phase 1 resumes where it stopped; then phase 2 and traces).
+   Consider adding sdk10 configs to phase 1/2 given the findings above.
+6. Reports: `.venv/bin/python scripts/report.py`. Write reports/findings.md (the interpretation), and add the
+   sdk_compare/buildbench sections to report.py / report_md.py / report_template.html (not done yet).
+7. Open decision for the user: deleting the fork's 96 branches / 88 tags (see "Fork state").

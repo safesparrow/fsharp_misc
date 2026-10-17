@@ -1,0 +1,8 @@
+[
+  {"id": "sdk10",       "layout": "work/sdks/dotnet10/sdk/10.0.302/FSharp", "dotnet": "work/sdks/dotnet10/dotnet", "env": {}},
+  {"id": "sdk10_flags", "layout": "work/sdks/dotnet10/sdk/10.0.302/FSharp", "dotnet": "work/sdks/dotnet10/dotnet", "env": {"DOTNET_TieredPGO": "0", "DOTNET_TC_CallCountingDelayMs": "0"}},
+  {"id": "sdk11",       "layout": "repos/baseline/.dotnet/sdk/11.0.100-rc.1.26420.103/FSharp", "dotnet": "repos/baseline/.dotnet/dotnet", "env": {}},
+  {"id": "sdk11_flags", "layout": "repos/baseline/.dotnet/sdk/11.0.100-rc.1.26420.103/FSharp", "dotnet": "repos/baseline/.dotnet/dotnet", "env": {"DOTNET_TieredPGO": "0", "DOTNET_TC_CallCountingDelayMs": "0"}},
+  {"id": "main",        "layout": "layouts/baseline", "dotnet": "repos/baseline/.dotnet/dotnet", "env": {}},
+  {"id": "main_flags",  "layout": "layouts/baseline", "dotnet": "repos/baseline/.dotnet/dotnet", "env": {"DOTNET_TieredPGO": "0", "DOTNET_TC_CallCountingDelayMs": "0"}}
+]
