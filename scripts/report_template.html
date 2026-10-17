@@ -95,8 +95,8 @@ button:focus-visible, select:focus-visible, .chip:focus-within { outline: 2px so
 .fig { background: var(--surface); border: 1px solid var(--grid); border-radius: 6px; padding: 12px 12px 8px; overflow-x: auto; }
 .fig svg { display: block; width: 100%; height: auto; min-width: 560px; }
 .fig .note { color: var(--muted); font-size: .8rem; margin: 6px 4px 0; }
-.small-multiples { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; }
-.small-multiples > .fig svg { min-width: 340px; }
+.small-multiples { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr)); gap: 14px; }
+.small-multiples > .fig svg { min-width: 360px; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
 .tile { background: var(--surface); border: 1px solid var(--grid); border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
 .tile .k { font-size: .78rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
@@ -392,7 +392,8 @@ function forest() {
   const rows = projects.map((p) => [p, series.map((c) => cmpOf(p, c, k))]).filter(([, xs]) => xs.some(Boolean));
   if (!rows.length || !series.length) { box.innerHTML = `<div class="empty">No comparison for this selection (pick at least one compilation and one non-baseline config).</div>`; return; }
   const [title, xlab] = cmpTitle();
-  const W = 1000, left = 300, right = 40, per = 13, rowH = Math.max(24, series.length * per + 10);
+  const maxLabel = Math.max(...rows.map(([p]) => p.replace("__", " · ").length));
+  const W = 1000, left = Math.min(460, 24 + maxLabel * 7), right = 40, per = 13, rowH = Math.max(24, series.length * per + 10);
   const svg = el("svg", { viewBox: `0 0 ${W} 100`, role: "img", "aria-label": title });
   const top = frame(svg, W - 10, title, subtitleBase(), [...series.map((c) => ({ label: c, color: configColor(c) })), { label: "hollow = 95% CI includes 0", kind: "hollow" }]) + 6;
   const H = top + rowH * rows.length + 46;
@@ -411,9 +412,7 @@ function forest() {
   rows.forEach(([p, xs], i) => {
     const y0 = top + i * rowH;
     if (i % 2 === 0) el("rect", { x: 0, y: y0, width: W, height: rowH, fill: css("--band") }, svg);
-    const st = state.view === 1 ? (D.phase1.stats[p] || {}).baseline : null;
     text(svg, left - 12, y0 + rowH / 2 + 4, p.replace("__", " · "), { "text-anchor": "end", fill: css("--ink") });
-    if (st && st[k]) text(svg, left - 12, y0 + rowH / 2 + 4 + 0, "", {});
     xs.forEach((x, j) => {
       if (!x) return;
       const c = series[j], col = configColor(c), y = y0 + 5 + per / 2 + j * per + (rowH - 10 - series.length * per) / 2;
@@ -522,7 +521,7 @@ function strips() {
   if (!projects.length) { box.innerHTML = `<div class="empty">No compilations selected.</div>`; return; }
   for (const p of projects) {
     const f = document.createElement("div"); f.className = "fig";
-    const W = 520, left = 130, right = 20, laneH = 20;
+    const W = 560, left = 110, right = 20, laneH = 22;
     const svg = el("svg", { viewBox: `0 0 ${W} 100`, role: "img", "aria-label": `${p} runs` });
     text(svg, 0, 16, p.replace("__", " · "), { "font-size": 13, "font-weight": 600, fill: css("--ink") });
     text(svg, 0, 32, `${M[k].label} · every measured run · tick = median`, { "font-size": 11, fill: css("--ink2") });

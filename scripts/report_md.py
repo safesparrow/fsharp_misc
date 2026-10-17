@@ -30,15 +30,30 @@ def _style(ax):
     ax.set_axisbelow(True)
 
 
+HEADER_IN = 1.05  # inches reserved at the top for title, subtitle and legend
+
+
 def _title(fig, title, subtitle):
-    fig.text(0.01, 0.985, title, ha="left", va="top", fontsize=13, fontweight="semibold", color=INK)
-    fig.text(0.01, 0.945, subtitle, ha="left", va="top", fontsize=9, color=INK2)
+    h = fig.get_size_inches()[1]
+    fig.text(0.01, 1 - 0.12 / h, title, ha="left", va="top", fontsize=13, fontweight="semibold", color=INK)
+    fig.text(0.01, 1 - 0.40 / h, subtitle, ha="left", va="top", fontsize=9, color=INK2)
+
+
+def _top(fig):
+    return 1 - HEADER_IN / fig.get_size_inches()[1]
+
+
+def _pct_fmt(v, _):
+    if abs(v) < 1e-9:
+        return "0%"
+    s = f"{v:+.1f}".rstrip("0").rstrip(".")
+    return s.replace("-", "\u2212") + "%"
 
 
 def forest_png(path, rows, series, colors, title, subtitle, xlabel):
     """rows: [(label, {series: dict(d, lo, hi, sig)})]. Dodged dots + CI whiskers; filled = significant."""
     n = len(rows); k = len(series)
-    h = max(3.0, 0.32 * n * max(1, k) * 0.55 + 1.6)
+    h = max(3.0, 0.18 * n * max(1, k) + 0.25 * n + HEADER_IN + 0.7)
     fig, ax = plt.subplots(figsize=(10, h), dpi=150)
     fig.patch.set_facecolor(SURF)
     _style(ax)
@@ -58,20 +73,21 @@ def forest_png(path, rows, series, colors, title, subtitle, xlabel):
     ax.set_yticks(range(n)); ax.set_yticklabels([r[0] for r in rows], fontsize=9, color=INK)
     ax.set_ylim(n - 0.5, -0.5)
     ax.set_xlabel(xlabel, color=INK2, fontsize=9)
-    ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:+.0f}%"))
+    ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(_pct_fmt))
     handles = [plt.Line2D([], [], marker="o", color=colors[s], markerfacecolor=colors[s], linewidth=2, markersize=6)
                for s in series]
     handles.append(plt.Line2D([], [], marker="o", color=MUTED, markerfacecolor=SURF, linewidth=0, markersize=6))
-    ax.legend(handles, list(series) + ["hollow = 95% CI includes 0"], loc="lower center", bbox_to_anchor=(0.5, 1.0),
-              ncol=min(len(series) + 1, 5), frameon=False, fontsize=9, labelcolor=INK2)
     _title(fig, title, subtitle)
-    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    fig.legend(handles, list(series) + ["hollow = 95% CI includes 0"], loc="upper left",
+               bbox_to_anchor=(0.005, 1 - 0.62 / h), ncol=min(len(series) + 1, 6), frameon=False, fontsize=9,
+               labelcolor=INK2, handlelength=2.2, columnspacing=1.6)
+    fig.tight_layout(rect=(0, 0, 1, _top(fig)))
     fig.savefig(path, facecolor=SURF); plt.close(fig)
 
 
 def stacked_png(path, bars, segs, title, subtitle, xlabel):
     """bars: [(label, {segment: seconds})] horizontal stacked bars with 2px surface gaps."""
-    fig, ax = plt.subplots(figsize=(10, 0.55 * len(bars) + 2.2), dpi=150)
+    fig, ax = plt.subplots(figsize=(10, 0.5 * len(bars) + HEADER_IN + 1.0), dpi=150)
     fig.patch.set_facecolor(SURF)
     _style(ax)
     for i, (label, d) in enumerate(bars):
@@ -85,10 +101,11 @@ def stacked_png(path, bars, segs, title, subtitle, xlabel):
     ax.set_ylim(len(bars) - 0.5, -0.5)
     ax.set_xlabel(xlabel, color=INK2, fontsize=9)
     handles = [plt.Rectangle((0, 0), 1, 1, color=SLOTS[j % 8]) for j in range(len(segs))]
-    ax.legend(handles, segs, loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=4, frameon=False, fontsize=9,
-              labelcolor=INK2)
     _title(fig, title, subtitle)
-    fig.tight_layout(rect=(0, 0, 1, 0.88))
+    h = fig.get_size_inches()[1]
+    fig.legend(handles, segs, loc="upper left", bbox_to_anchor=(0.005, 1 - 0.62 / h), ncol=len(segs), frameon=False,
+               fontsize=8.5, labelcolor=INK2, handlelength=1.2, columnspacing=1.2)
+    fig.tight_layout(rect=(0, 0, 1, _top(fig)))
     fig.savefig(path, facecolor=SURF); plt.close(fig)
 
 

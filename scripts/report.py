@@ -159,7 +159,12 @@ def load_runs(d):
     p = Path(d) / "runs.jsonl"
     if not p.exists():
         return [], []
-    runs = [json.loads(l) for l in p.read_text().splitlines() if l.strip()]
+    runs = []
+    for l in p.read_text().splitlines():
+        try:
+            runs.append(json.loads(l))
+        except json.JSONDecodeError:
+            pass  # a line still being written by a running benchmark
     metas = [json.loads(m.read_text()) for m in sorted(Path(d).glob("meta-*.json"))]
     return runs, metas
 
