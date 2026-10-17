@@ -88,8 +88,12 @@ def main():
     if bruns:
         g = defaultdict(lambda: defaultdict(list))
         for r in bruns:
-            for k in ("wall_s", "cpu_s"):
-                g[(r["sdk"], r["mode"])][k].append(r[k])
+            # rusage of the `dotnet build` tree misses fsc processes whose MSBuild node is not reaped by the
+            # top process, so build CPU = system-wide busy CPU during the build minus the background load
+            # measured in the 1 s right before it.
+            h = r["host"]
+            g[(r["sdk"], r["mode"])]["wall_s"].append(r["wall_s"])
+            g[(r["sdk"], r["mode"])]["cpu_s"].append(h["sys_busy_cpu_s"] - h["pre_busy_cores"] * h["mon_wall_s"])
         print(f"\n## Build level: `dotnet build` of {Path(bmetas[-1]['repo']).name} ({len(bruns)} runs)\n")
         print("| SDK | none wall | none CPU | env_all Δwall | env_all ΔCPU | env_fsc Δwall | env_fsc ΔCPU |\n|---|---:|---:|---|---|---|---|")
         b = {}

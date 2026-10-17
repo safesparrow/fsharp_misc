@@ -1,0 +1,28 @@
+{
+ "argv": [
+  "scripts/buildbench.py",
+  "--repo",
+  "repos/fantomas",
+  "--sln",
+  "fantomas.slnx",
+  "--sdks",
+  "sdk10=work/sdks/dotnet10,sdk11=repos/baseline/.dotnet",
+  "--out",
+  "results/buildbench",
+  "--runs",
+  "6",
+  "--warmup",
+  "1"
+ ],
+ "start": "2026-10-17T13:21:51+0100",
+ "repo": "~/RiderProjects/fsharp_perf/repos/fantomas",
+ "commit": "f734124bcc4406be0a7b592c00b9de3167d32125",
+ "sdks": {
+  "sdk10": "~/RiderProjects/fsharp_perf/work/sdks/dotnet10",
+  "sdk11": "~/RiderProjects/fsharp_perf/repos/baseline/.dotnet"
+ },
+ "flags": {
+  "DOTNET_TieredPGO": "0",
+  "DOTNET_TC_CallCountingDelayMs": "0"
+ }
+}
