@@ -1,0 +1,26 @@
+{
+ "flags": {
+  "busy": 46566,
+  "managed": 21723,
+  "gc": 18065,
+  "jit": 1404,
+  "runtime": 2800,
+  "other": 2574
+ },
+ "srv": {
+  "busy": 48224,
+  "managed": 24024,
+  "gc": 14772,
+  "jit": 779,
+  "runtime": 3549,
+  "other": 5100
+ },
+ "srvh11nc": {
+  "busy": 52714,
+  "managed": 25369,
+  "gc": 19093,
+  "jit": 930,
+  "runtime": 5054,
+  "other": 2268
+ }
+}

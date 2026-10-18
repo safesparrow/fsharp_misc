@@ -28,6 +28,7 @@ import hostmon  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 REPO = ROOT / "repos" / "baseline"
 DOTNET = REPO / ".dotnet" / "dotnet"
+SLN = "FSharp.Compiler.Service.slnx"
 WRAPPER = ROOT / "scripts" / "fsc-jitflags-wrapper.sh"
 CONFIGS = {
     "baseline": dict(layout="baseline", server=False, flags=False),
@@ -35,6 +36,28 @@ CONFIGS = {
     "server": dict(layout="server", server=True, flags=False),
     # Supplementary: the same as server, with more measured builds, to see where warm workers settle.
     "server_long": dict(layout="server", server=True, flags=False),
+    # Worker GC variants, applied to the workers only through FSHARP_COMPILER_SERVER_WORKER_<NAME>.
+    "server_nonconc": dict(layout="server", server=True, flags=False,
+                           env={"FSHARP_COMPILER_SERVER_WORKER_DOTNET_gcConcurrent": "0"}),
+    "server_heapsall_nonconc": dict(layout="server", server=True, flags=False,
+                                    env={"FSHARP_COMPILER_SERVER_WORKER_DOTNET_gcConcurrent": "0",
+                                         "FSHARP_COMPILER_SERVER_WORKER_DOTNET_GCHeapCount": format(os.cpu_count(), "x")}),
+    "server_datas": dict(layout="server", server=True, flags=False,
+                         env={"FSHARP_COMPILER_SERVER_WORKER_DOTNET_GCHeapCount": ""}),
+    "server_ccd0_nonconc": dict(layout="server", server=True, flags=False,
+                                env={"FSHARP_COMPILER_SERVER_WORKER_DOTNET_TC_CallCountingDelayMs": "0",
+                                     "FSHARP_COMPILER_SERVER_WORKER_DOTNET_gcConcurrent": "0"}),
+    "server_ccd0_nonconc_datas": dict(layout="server", server=True, flags=False,
+                                      env={"FSHARP_COMPILER_SERVER_WORKER_DOTNET_TC_CallCountingDelayMs": "0",
+                                           "FSHARP_COMPILER_SERVER_WORKER_DOTNET_gcConcurrent": "0",
+                                           "FSHARP_COMPILER_SERVER_WORKER_DOTNET_GCHeapCount": ""}),
+    "server_ccd0_nonconc_heapsall": dict(layout="server", server=True, flags=False,
+                                         env={"FSHARP_COMPILER_SERVER_WORKER_DOTNET_TC_CallCountingDelayMs": "0",
+                                              "FSHARP_COMPILER_SERVER_WORKER_DOTNET_gcConcurrent": "0",
+                                              "FSHARP_COMPILER_SERVER_WORKER_DOTNET_GCHeapCount": format(os.cpu_count(), "x")}),
+    "server_datas_nonconc": dict(layout="server", server=True, flags=False,
+                                 env={"FSHARP_COMPILER_SERVER_WORKER_DOTNET_GCHeapCount": "",
+                                      "FSHARP_COMPILER_SERVER_WORKER_DOTNET_gcConcurrent": "0"}),
 }
 
 
@@ -97,14 +120,14 @@ def stop_workers():
 
 def build_cmd(cfg):
     layout = ROOT / "layouts" / cfg["layout"]
-    cmd = [str(DOTNET), "build", "FSharp.Compiler.Service.slnx", "-c", "Release", "--no-restore", "--no-incremental",
+    cmd = [str(DOTNET), "build", SLN, "-c", "Release", "--no-restore", "--no-incremental",
            "-nodeReuse:false",
            f"-p:FSharpTargetsPath={layout}/Microsoft.FSharp.Targets",
            f"-p:FSharpPropsShim={layout}/Microsoft.FSharp.NetSdk.props",
            f"-p:FSharpTargetsShim={layout}/Microsoft.FSharp.NetSdk.targets",
            f"-p:FSharpOverridesTargetsShim={layout}/Microsoft.FSharp.Overrides.NetSdk.targets",
            f"-p:FSharpUseSharedCompilation={'true' if cfg['server'] else 'false'}"]
-    env = base_env()
+    env = base_env() | cfg.get("env", {})
     if cfg["flags"]:
         env["FSC_JITFLAGS_DOTNET"] = str(DOTNET)
         cmd += [f"-p:FscToolPath={WRAPPER.parent}", f"-p:FscToolExe={WRAPPER.name}"]
@@ -126,13 +149,19 @@ def main():
     ap.add_argument("--runs", type=int, default=2)
     ap.add_argument("--warmup", type=int, default=1)
     ap.add_argument("--out", default="results/server")
+    ap.add_argument("--repo", default="repos/baseline", help="repo to build (outputs are hashed only for repos/baseline)")
+    ap.add_argument("--sln", default="FSharp.Compiler.Service.slnx")
+    ap.add_argument("--extra", default="", help="extra msbuild arguments for every config")
     a = ap.parse_args()
+    global REPO, SLN
+    hash_outputs_enabled = a.repo == "repos/baseline"
+    REPO, SLN = (ROOT / a.repo).resolve(), a.sln
 
     out = ROOT / a.out
     out.mkdir(parents=True, exist_ok=True)
     logs = ROOT / "work" / "serverbench_logs"
     logs.mkdir(parents=True, exist_ok=True)
-    files = output_files()
+    files = output_files() if hash_outputs_enabled else []
     meta = dict(argv=sys.argv, start=time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                 commit=subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO, capture_output=True, text=True).stdout.strip(),
                 server_commit=subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT / "repos" / "server", capture_output=True,
@@ -145,16 +174,17 @@ def main():
         cfg = CONFIGS[name]
         stop_workers()
         cmd, env = build_cmd(cfg)
+        cmd += a.extra.split()
         for it in range(a.warmup + a.runs):
             warm = it < a.warmup
             subprocess.run([str(DOTNET), "build-server", "shutdown"], cwd=REPO, env=base_env(), capture_output=True)
             pre, waited = hostmon.wait_quiet(1.0, 1.0, 60.0)
             tag = "warmup" if warm else f"run{it - a.warmup + 1}"
-            logp = logs / f"{name}_{tag}.log"
+            logp = logs / f"{Path(a.out).name}_{name}_{tag}.log"
             w0 = workers()
             with logp.open("w") as lf, hostmon.RunMonitor() as mon:
                 t0 = time.perf_counter()
-                p = subprocess.Popen(cmd + [f"-bl:{logs / f'{name}_{tag}.binlog'}"], cwd=REPO, env=env, stdout=lf,
+                p = subprocess.Popen(cmd + [f"-bl:{logp.with_suffix('.binlog')}"], cwd=REPO, env=env, stdout=lf,
                                      stderr=subprocess.STDOUT)
                 _, status, ru = os.wait4(p.pid, 0)
                 wall = time.perf_counter() - t0

@@ -1,0 +1,29 @@
+<h2>Summary</h2>
+<ul>
+  <li><b>Your result reproduces.</b> Per compilation, a warm worker is much faster than stock fsc + JIT flags, in both wall time and CPU. Summed over 5 projects, the wall time falls by 25–30% and CPU by 35–45%. Small and medium projects take 0.2–0.6× of the flags' time; FCS takes 0.85–0.9×.</li>
+  <li><b>Whole builds needed the workers tuned.</b> The first version was only level with the flags on whole builds. Two one-line worker settings fixed that, and both are now the branch default:
+    <ul>
+      <li><code>DOTNET_TC_CallCountingDelayMs=0</code>, keeping Tiered PGO on. A new worker used to compile its first large project at stock speed (FCS 26–28 s, against 14 s with the flags). Now it tiers up as fast as a JIT-flagged process, and steady state is unchanged.</li>
+      <li>Non-concurrent GC: about 13% less CPU per compilation and 12% faster FCS-solution builds.</li>
+    </ul></li>
+  <li><b>Whole builds with the new defaults:</b>
+    <ul>
+      <li>Fantomas: 19.4 s, against 25.3 s for stock + flags (−23%) and 30.2 s for stock (−36%). CPU −44%. It repeats to within about 0.3 s.</li>
+      <li>FSharp.Compiler.Service.slnx: 38–40 s against 45.7 s (−13 to −16%), CPU −29%. This solution is dominated by the FCS compilation, where the JIT is only 2–3% of CPU and GC is 31–39%.</li>
+    </ul></li>
+  <li><b>Not worth it:</b>
+    <ul>
+      <li>Reusing assembly caches between compilations: a warm worker's imports already take about 0.05 s.</li>
+      <li>Tiered PGO off in workers: 11% slower at steady state.</li>
+      <li>All cores as GC heaps per worker: 28% slower than the flags on parallel builds (47% slower than 5 heaps), as you expected.</li>
+      <li>Skipping the idle-time GC: no effect.</li>
+    </ul></li>
+  <li><b>Outputs:</b> every server compilation and build produced the same assemblies as stock (main and reference assemblies, compared by hash).</li>
+  <li><b>Open issue: occasional slow builds.</b>
+    <ul>
+      <li>3 of about 22 warm FCS-solution server builds took 53–55 s instead of about 38–45 s, with normal or low CPU. No worker restarted and no compilation fell back to a stock process.</li>
+      <li>A repeat of 5 builds with the new defaults showed no such outlier: 38.0, 40.8, 37.5 and 37.5 s, plus 45.6 s for a build that started with 2.5 cores of outside load.</li>
+      <li>The 9 stock + flags builds varied by only about 1 s.</li>
+      <li>Not explained yet. The next step is per-compilation timing in the binlog for a slow build (the earlier slow builds' logs were overwritten).</li>
+    </ul></li>
+</ul>

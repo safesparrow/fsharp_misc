@@ -1,0 +1,18 @@
+{
+ "argv": [
+  "scripts/serverbench.py",
+  "--configs",
+  "flags,server,server_nonconc,server_ccd0_nonconc,server_ccd0_nonconc_datas,server_ccd0_nonconc_heapsall",
+  "--runs",
+  "3",
+  "--warmup",
+  "1",
+  "--out",
+  "results/server_e4"
+ ],
+ "start": "2026-10-18T11:32:58+0100",
+ "commit": "99406265c88090c50e575afe8474f0979aa6f815",
+ "server_commit": "c6bd13a50aeb3919afc7206ba821df515e08f0c0",
+ "ncpu": 11,
+ "outputs": 61
+}

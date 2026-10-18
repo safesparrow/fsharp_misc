@@ -1,0 +1,147 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compiler Server Investigation</title><style>
+:root{
+  --bg:#fbfaf8; --fg:#1d1d1f; --muted:#5f6368; --line:#d9d6d0; --card:#ffffff; --code:#f2efe9;
+  --accent:#2f6fde; --accent-soft:#e3ecfc; --ok:#1f8a4c; --ok-soft:#e1f3e8; --warn:#b26a00; --warn-soft:#fbf0dc;
+  --bad:#c0392b; --bad-soft:#f9e3e0; --node:#f4f2ee; --worker:#e6f0e9; --client:#e3ecfc;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16171a; --fg:#e8e6e3; --muted:#a2a5ab; --line:#34363b; --card:#1e2024; --code:#26282d;
+    --accent:#7aa7ff; --accent-soft:#1f2b44; --ok:#5cc98a; --ok-soft:#173226; --warn:#f0b35a; --warn-soft:#3a2d16;
+    --bad:#ff8a7a; --bad-soft:#3d201c; --node:#25272c; --worker:#1b2e23; --client:#1f2b44;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16171a; --fg:#e8e6e3; --muted:#a2a5ab; --line:#34363b; --card:#1e2024; --code:#26282d;
+  --accent:#7aa7ff; --accent-soft:#1f2b44; --ok:#5cc98a; --ok-soft:#173226; --warn:#f0b35a; --warn-soft:#3a2d16;
+  --bad:#ff8a7a; --bad-soft:#3d201c; --node:#25272c; --worker:#1b2e23; --client:#1f2b44;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+.wrap{display:grid;grid-template-columns:230px minmax(0,1fr);max-width:1240px;margin:0 auto}
+nav{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:28px 16px;border-right:1px solid var(--line);font-size:13.5px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:3px 0}
+nav a:hover{color:var(--accent)}
+nav .t{font-weight:650;color:var(--fg);margin-bottom:10px}
+main{padding:28px 40px 80px;min-width:0}
+h1{font-size:28px;margin:0 0 4px}
+h2{font-size:21px;margin:44px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:24px 0 8px}
+p,li{max-width:80ch}
+.sub{color:var(--muted);margin:0 0 20px}
+code{font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code);padding:1px 5px;border-radius:4px}
+pre{font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code);padding:12px 14px;border-radius:8px;overflow:auto}
+pre code{background:none;padding:0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:16px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.card b{display:block;margin-bottom:4px}
+.card span{color:var(--muted);font-size:13.5px}
+.card code{word-break:break-all}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:var(--card)}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+th{background:var(--node);font-weight:600}
+.tw{overflow-x:auto}
+.pill{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;font-weight:600}
+.p-ok{background:var(--ok-soft);color:var(--ok)} .p-warn{background:var(--warn-soft);color:var(--warn)}
+.p-bad{background:var(--bad-soft);color:var(--bad)} .p-acc{background:var(--accent-soft);color:var(--accent)}
+figure{margin:18px 0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+figcaption{color:var(--muted);font-size:13px;margin-top:8px}
+svg{width:100%;height:auto;display:block}
+svg text{fill:var(--fg);font:12.5px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+svg .m{fill:var(--muted);font-size:11.5px}
+svg .b{font-weight:650}
+svg .node{fill:var(--node);stroke:var(--line)}
+svg .client{fill:var(--client);stroke:var(--accent)}
+svg .worker{fill:var(--worker);stroke:var(--ok)}
+svg .gone{fill:none;stroke:var(--bad);stroke-dasharray:5 4}
+svg .ln{stroke:var(--muted);stroke-width:1.4;fill:none}
+svg .acc{stroke:var(--accent);stroke-width:1.6;fill:none}
+svg .okl{stroke:var(--ok);stroke-width:1.6;fill:none}
+svg .life{stroke:var(--line);stroke-width:1.2;stroke-dasharray:4 4}
+svg .box{fill:var(--card);stroke:var(--line)}
+.callout{border-left:4px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 8px 8px 0;margin:14px 0}
+.callout.warn{border-color:var(--warn);background:var(--warn-soft)}
+@media (max-width:860px){.wrap{display:block}nav{display:none}main{padding:20px 16px 60px}}
+</style>
+<style>td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap} td small{color:var(--muted)}
+main{max-width:1240px;margin:0 auto} a{color:var(--accent)}</style></head><body><main>
+<h1>F# Compiler Server: making it faster</h1>
+<p class=sub>Per-compilation and whole-build experiments on the compiler server branch (<code>repos/server</code>), 2026-10-18,
+11-core Apple M-series. Plan: <a href="plan.html">plan.html</a> · first results: <a href="results.html">results.html</a>.</p>
+<h2>Summary</h2>
+<ul>
+  <li><b>Your result reproduces.</b> Per compilation, a warm worker is much faster than stock fsc + JIT flags, in both wall time and CPU. Summed over 5 projects, the wall time falls by 25–30% and CPU by 35–45%. Small and medium projects take 0.2–0.6× of the flags' time; FCS takes 0.85–0.9×.</li>
+  <li><b>Whole builds needed the workers tuned.</b> The first version was only level with the flags on whole builds. Two one-line worker settings fixed that, and both are now the branch default:
+    <ul>
+      <li><code>DOTNET_TC_CallCountingDelayMs=0</code>, keeping Tiered PGO on. A new worker used to compile its first large project at stock speed (FCS 26–28 s, against 14 s with the flags). Now it tiers up as fast as a JIT-flagged process, and steady state is unchanged.</li>
+      <li>Non-concurrent GC: about 13% less CPU per compilation and 12% faster FCS-solution builds.</li>
+    </ul></li>
+  <li><b>Whole builds with the new defaults:</b>
+    <ul>
+      <li>Fantomas: 19.4 s, against 25.3 s for stock + flags (−23%) and 30.2 s for stock (−36%). CPU −44%. It repeats to within about 0.3 s.</li>
+      <li>FSharp.Compiler.Service.slnx: 38–40 s against 45.7 s (−13 to −16%), CPU −29%. This solution is dominated by the FCS compilation, where the JIT is only 2–3% of CPU and GC is 31–39%.</li>
+    </ul></li>
+  <li><b>Not worth it:</b>
+    <ul>
+      <li>Reusing assembly caches between compilations: a warm worker's imports already take about 0.05 s.</li>
+      <li>Tiered PGO off in workers: 11% slower at steady state.</li>
+      <li>All cores as GC heaps per worker: 28% slower than the flags on parallel builds (47% slower than 5 heaps), as you expected.</li>
+      <li>Skipping the idle-time GC: no effect.</li>
+    </ul></li>
+  <li><b>Outputs:</b> every server compilation and build produced the same assemblies as stock (main and reference assemblies, compared by hash).</li>
+  <li><b>Open issue: occasional slow builds.</b>
+    <ul>
+      <li>3 of about 22 warm FCS-solution server builds took 53–55 s instead of about 38–45 s, with normal or low CPU. No worker restarted and no compilation fell back to a stock process.</li>
+      <li>A repeat of 5 builds with the new defaults showed no such outlier: 38.0, 40.8, 37.5 and 37.5 s, plus 45.6 s for a build that started with 2.5 cores of outside load.</li>
+      <li>The 9 stock + flags builds varied by only about 1 s.</li>
+      <li>Not explained yet. The next step is per-compilation timing in the binlog for a slow build (the earlier slow builds' logs were overwritten).</li>
+    </ul></li>
+</ul>
+
+<h2>Findings, ranked by benefit for the effort</h2>
+<div class=tw><table><tr><th>#</th><th>Change</th><th>Measured effect</th><th>Complexity</th><th>Verdict</th></tr><tr><td class=n>1</td><td><b>Keep the compiler warm: compile in long-lived workers (the server)</b></td><td>Per compilation (5 projects summed): wall -25%, CPU -36% vs stock + JIT flags (vs stock: -58%); FSharp.Build 0.21×, FCS 0.89× of flags. Whole builds with the tuned workers (rows 2–3): Fantomas -22% wall / -44% CPU vs flags (-35% vs stock); FSharp.Compiler.Service.slnx -12% wall / -29% CPU vs flags.</td><td>built (this branch)</td><td>Done.</td></tr><tr><td class=n>2</td><td><b>Workers: DOTNET_TC_CallCountingDelayMs=0, Tiered PGO kept</b></td><td>Cold first FCS compilation 27.6 s → 17.5 s (-37%); steady state unchanged (18.8 vs 18.7 s). Build with fresh workers (FCS slnx warm-up): 58.2 s → 47.3 s, on par with stock + flags.</td><td>1 line (client)</td><td>Done: now the default.</td></tr><tr><td class=n>3</td><td><b>Workers: non-concurrent GC (DOTNET_gcConcurrent=0; GCSettings.LatencyMode=Batch per compilation is equivalent)</b></td><td>Per compilation: CPU -13%, wall -5%. FCS slnx build: 44.4 s → 39.3 s (-12%).</td><td>1 line (client)</td><td>Done: now the default.</td></tr><tr><td class=n>4</td><td><b>Workers: GC heap count (cores/2 vs all cores vs DATAS)</b></td><td>Alone, 11 heaps make FCS -12% faster, but in a parallel build they are a disaster: 58.6 s vs 40.0 s (+47%). DATAS: FCS slnx 37.7 s (more memory: up to 7.0 GB vs 4.5 GB), Fantomas 20.1 vs 19.7 s with more CPU.</td><td>1 line</td><td>Keep max(1, cores/2); DATAS is a reasonable alternative, not clearly better.</td></tr><tr><td class=n>5</td><td><b>Worker affinity (a project goes back to the worker that compiled it)</b></td><td>Per compilation a dedicated worker is no faster than a shared warm one (19.4 vs 18.7 s): most compiler code paths are shared between projects. In builds it avoids sending a big compilation to a worker that has never run it.</td><td>~30 lines (client)</td><td>Kept; cheap. Fast tier-up (row 2) matters more.</td></tr><tr><td class=n>6</td><td><b>Keep assembly caches between compilations (IL readers, shared imported CCUs)</b></td><td>No gain (18.5 vs 18.7 s): a warm worker spends ~0.03–0.05 s importing references.</td><td>small (opt-in switch exists)</td><td>Leave off: not stock-exact, and nothing to gain on these projects.</td></tr><tr><td class=n>7</td><td><b>JIT flags in workers (TieredPGO=0)</b></td><td>Steady state +11% (both flags), +11% (TieredPGO=0 alone).</td><td>1 line</td><td>Rejected: Tiered PGO pays off in long-lived workers.</td></tr><tr><td class=n>8</td><td><b>No compacting GC when idle</b></td><td>No effect (18.8 vs 18.7 s).</td><td>1 line</td><td>Keep the idle GC: it returns memory.</td></tr><tr><td class=n>9</td><td><b>Reduce allocations in the compiler (large projects)</b></td><td>FCS allocates ~33 GB per compilation; GC is 31–39% of its busy CPU samples, JIT 2–3%: for FCS the server can only remove JIT/startup.</td><td>large (compiler work)</td><td>Biggest remaining lever for big projects, with or without the server.</td></tr></table></div>
+
+<h2>Per-compilation results</h2>
+<p>Each compilation is replayed from the response file captured in a real build (outputs redirected). Process configs start
+<code>dotnet fsc.dll</code> per compilation; server configs send it to a worker over its socket, as the Fsc task does.
+1 warm-up round, then 5 measured rounds of the 5 projects; cells are medians in seconds, with the ratio to stock + JIT flags.
+"Cold" columns are the warm-up round: the first time a fresh worker (or process) compiles that project.</p>
+<div class=tw><table><tr><th>config</th><th>FCS</th><th>FSharp.Core</th><th>ComponentTests</th><th>Test.Utilities</th><th>FSharp.Build</th><th>sum wall s</th><th>sum CPU s</th>
+<th>cold FCS s</th><th>cold round s</th><th>FCS GC pause s</th></tr><tr><td><code>stock</code><br><small>stock fsc process</small></td><td class=n>23.95<small> 1.76×</small></td><td class=n>10.19<small> 2.26×</small></td><td class=n>6.55<small> 1.67×</small></td><td class=n>3.07<small> 1.54×</small></td><td class=n>1.02<small> 1.15×</small></td><td class=n><b>44.8</b><small> 1.79×</small></td><td class=n>170<small> 1.53×</small></td><td class=n>24.5</td><td class=n>45.5</td><td class=n>–</td></tr><tr><td><code>flags</code><br><small>stock fsc process + JIT flags (TieredPGO=0, CallCountingDelayMs=0)</small></td><td class=n>13.64<small> 1.00×</small></td><td class=n>4.51<small> 1.00×</small></td><td class=n>3.93<small> 1.00×</small></td><td class=n>2.00<small> 1.00×</small></td><td class=n>0.89<small> 1.00×</small></td><td class=n><b>25.0</b><small> 1.00×</small></td><td class=n>111<small> 1.00×</small></td><td class=n>13.7</td><td class=n>25.0</td><td class=n>–</td></tr><tr><td><code>srv</code><br><small>worker: Server GC, 5 heaps (default)</small></td><td class=n>12.17<small> 0.89×</small></td><td class=n>3.02<small> 0.67×</small></td><td class=n>2.50<small> 0.64×</small></td><td class=n>0.87<small> 0.43×</small></td><td class=n>0.19<small> 0.21×</small></td><td class=n><b>18.7</b><small> 0.75×</small></td><td class=n>72<small> 0.64×</small></td><td class=n>27.6</td><td class=n>37.1</td><td class=n>4.1</td></tr><tr><td><code>srv_dedicated</code><br><small>worker per project (perfect affinity)</small></td><td class=n>12.30<small> 0.90×</small></td><td class=n>3.20<small> 0.71×</small></td><td class=n>2.56<small> 0.65×</small></td><td class=n>0.99<small> 0.50×</small></td><td class=n>0.34<small> 0.39×</small></td><td class=n><b>19.4</b><small> 0.78×</small></td><td class=n>69<small> 0.62×</small></td><td class=n>27.1</td><td class=n>49.9</td><td class=n>3.9</td></tr><tr><td><code>srv_reuse</code><br><small>worker: keep assembly caches between compilations</small></td><td class=n>12.12<small> 0.89×</small></td><td class=n>3.01<small> 0.67×</small></td><td class=n>2.36<small> 0.60×</small></td><td class=n>0.81<small> 0.40×</small></td><td class=n>0.19<small> 0.22×</small></td><td class=n><b>18.5</b><small> 0.74×</small></td><td class=n>71<small> 0.64×</small></td><td class=n>26.4</td><td class=n>34.5</td><td class=n>3.8</td></tr><tr><td><code>srv_noidlegc</code><br><small>worker: no idle compacting GC</small></td><td class=n>12.33<small> 0.90×</small></td><td class=n>3.00<small> 0.67×</small></td><td class=n>2.39<small> 0.61×</small></td><td class=n>0.84<small> 0.42×</small></td><td class=n>0.20<small> 0.22×</small></td><td class=n><b>18.8</b><small> 0.75×</small></td><td class=n>72<small> 0.64×</small></td><td class=n>27.1</td><td class=n>35.9</td><td class=n>4.0</td></tr><tr><td><code>srv_flags</code><br><small>worker + both JIT flags</small></td><td class=n>13.31<small> 0.98×</small></td><td class=n>3.59<small> 0.80×</small></td><td class=n>2.75<small> 0.70×</small></td><td class=n>0.95<small> 0.48×</small></td><td class=n>0.21<small> 0.24×</small></td><td class=n><b>20.8</b><small> 0.83×</small></td><td class=n>77<small> 0.69×</small></td><td class=n>14.6</td><td class=n>21.9</td><td class=n>4.0</td></tr><tr><td><code>srv_pgo0</code><br><small>worker: TieredPGO=0</small></td><td class=n>13.36<small> 0.98×</small></td><td class=n>3.46<small> 0.77×</small></td><td class=n>2.80<small> 0.71×</small></td><td class=n>0.92<small> 0.46×</small></td><td class=n>0.21<small> 0.24×</small></td><td class=n><b>20.8</b><small> 0.83×</small></td><td class=n>77<small> 0.69×</small></td><td class=n>21.2</td><td class=n>29.3</td><td class=n>3.9</td></tr><tr><td><code>srv_ccd0</code><br><small>worker: CallCountingDelayMs=0 (PGO kept)</small></td><td class=n>12.32<small> 0.90×</small></td><td class=n>2.90<small> 0.64×</small></td><td class=n>2.61<small> 0.66×</small></td><td class=n>0.81<small> 0.41×</small></td><td class=n>0.20<small> 0.22×</small></td><td class=n><b>18.8</b><small> 0.75×</small></td><td class=n>72<small> 0.65×</small></td><td class=n>17.5</td><td class=n>24.4</td><td class=n>4.1</td></tr><tr><td><code>srv_datas</code><br><small>worker: DATAS (no fixed heap count)</small></td><td class=n>11.45<small> 0.84×</small></td><td class=n>3.16<small> 0.70×</small></td><td class=n>2.42<small> 0.62×</small></td><td class=n>0.91<small> 0.46×</small></td><td class=n>0.21<small> 0.24×</small></td><td class=n><b>18.2</b><small> 0.73×</small></td><td class=n>83<small> 0.74×</small></td><td class=n>26.8</td><td class=n>35.6</td><td class=n>3.1</td></tr><tr><td><code>srv_heaps_all</code><br><small>worker: 11 heaps</small></td><td class=n>11.27<small> 0.83×</small></td><td class=n>2.90<small> 0.64×</small></td><td class=n>2.38<small> 0.61×</small></td><td class=n>0.84<small> 0.42×</small></td><td class=n>0.20<small> 0.22×</small></td><td class=n><b>17.6</b><small> 0.70×</small></td><td class=n>78<small> 0.70×</small></td><td class=n>26.2</td><td class=n>34.8</td><td class=n>2.9</td></tr><tr><td><code>srv_nonconc</code><br><small>worker: non-concurrent GC</small></td><td class=n>11.63<small> 0.85×</small></td><td class=n>2.91<small> 0.65×</small></td><td class=n>2.19<small> 0.56×</small></td><td class=n>0.82<small> 0.41×</small></td><td class=n>0.23<small> 0.25×</small></td><td class=n><b>17.8</b><small> 0.71×</small></td><td class=n>62<small> 0.56×</small></td><td class=n>26.7</td><td class=n>35.4</td><td class=n>4.0</td></tr><tr><td><code>srv_batch</code><br><small>worker: GC latency Batch while compiling</small></td><td class=n>11.58<small> 0.85×</small></td><td class=n>2.87<small> 0.64×</small></td><td class=n>2.18<small> 0.56×</small></td><td class=n>0.86<small> 0.43×</small></td><td class=n>0.19<small> 0.22×</small></td><td class=n><b>17.7</b><small> 0.71×</small></td><td class=n>62<small> 0.56×</small></td><td class=n>27.2</td><td class=n>35.4</td><td class=n>4.0</td></tr><tr><td><code>srv_heaps_all_nonconc</code><br><small>worker: 11 heaps + non-concurrent GC</small></td><td class=n>10.28<small> 0.75×</small></td><td class=n>2.84<small> 0.63×</small></td><td class=n>1.90<small> 0.48×</small></td><td class=n>0.81<small> 0.40×</small></td><td class=n>0.19<small> 0.21×</small></td><td class=n><b>16.0</b><small> 0.64×</small></td><td class=n>69<small> 0.62×</small></td><td class=n>25.7</td><td class=n>34.0</td><td class=n>2.7</td></tr><tr><td><code>srv_heaps_all_batch</code><br><small>worker: 11 heaps + Batch latency</small></td><td class=n>10.30<small> 0.75×</small></td><td class=n>2.92<small> 0.65×</small></td><td class=n>1.95<small> 0.50×</small></td><td class=n>0.77<small> 0.39×</small></td><td class=n>0.20<small> 0.22×</small></td><td class=n><b>16.1</b><small> 0.65×</small></td><td class=n>69<small> 0.62×</small></td><td class=n>26.4</td><td class=n>34.1</td><td class=n>2.7</td></tr><tr><td><code>srv_ccd0_nonconc</code><br><small>worker: CallCountingDelayMs=0 + non-concurrent GC</small></td><td class=n>11.58<small> 0.85×</small></td><td class=n>2.91<small> 0.65×</small></td><td class=n>2.14<small> 0.54×</small></td><td class=n>0.78<small> 0.39×</small></td><td class=n>0.19<small> 0.21×</small></td><td class=n><b>17.6</b><small> 0.70×</small></td><td class=n>61<small> 0.55×</small></td><td class=n>17.4</td><td class=n>23.9</td><td class=n>4.0</td></tr></table></div>
+<p>Outputs: every server configuration produced assemblies identical to stock for every compilation (hashes compared per run).</p>
+
+<h2>Where the time goes in a large compilation (FCS)</h2>
+<p>Native sampling with macOS <code>sample</code> (1 ms, every thread), self samples of busy threads grouped by what runs:
+managed compiler code (JIT'd or ReadyToRun, unsymbolized), GC (<code>gc_heap</code> functions in libcoreclr), JIT (libclrjit),
+other runtime code, other native code. Sampling slows the compilation, so read shares, not times.</p>
+<div class=tw><table><tr><th>profile</th><th>managed</th><th>GC</th><th>JIT</th><th>runtime</th><th>other</th></tr><tr><td>flags</td><td class=n>46.6%</td><td class=n>38.8%</td><td class=n>3.0%</td><td class=n>6.0%</td><td class=n>5.5%</td></tr><tr><td>srv</td><td class=n>49.8%</td><td class=n>30.6%</td><td class=n>1.6%</td><td class=n>7.4%</td><td class=n>10.6%</td></tr><tr><td>srvh11nc</td><td class=n>48.1%</td><td class=n>36.2%</td><td class=n>1.8%</td><td class=n>9.6%</td><td class=n>4.3%</td></tr></table></div>
+<p><code>flags</code> = stock process with both JIT flags; <code>srv</code> = warm worker (default); <code>srvh11nc</code> = warm worker, 11 heaps, non-concurrent GC.
+For FCS the JIT is already small with the flags, so a warm worker can only win a little there; GC is the dominant cost.</p>
+
+<h2>Whole builds</h2>
+<p><code>dotnet build -c Release --no-restore --no-incremental</code>, MSBuild node reuse off, 1 warm-up and 3 measured builds per config,
+configs run one after another. Server configs include worker affinity; their worker settings go to the workers only
+(<code>FSHARP_COMPILER_SERVER_WORKER_*</code>). CPU = build process tree + live workers.</p>
+<h3>FSharp.Compiler.Service.slnx (17 compilations, up to 9 at once)</h3>
+<div class=tw><table><tr><th>config</th><th>warm-up (cold workers) s</th><th>measured builds s</th><th>mean s</th><th>vs flags</th><th>CPU s</th><th>CPU vs flags</th><th>workers</th><th>worker RSS MB</th></tr><tr><td><code>flags</code></td><td class=n>46.6</td><td class=n>46.1 · 45.3 · 45.6</td><td class=n><b>45.7</b></td><td class=n>1.00×</td><td class=n>345</td><td class=n>1.00×</td><td class=n>0</td><td class=n>0</td></tr><tr><td><code>server</code></td><td class=n>67.1</td><td class=n>45.3 · 45.4 · 42.6</td><td class=n><b>44.4</b></td><td class=n>0.97×</td><td class=n>273</td><td class=n>0.79×</td><td class=n>8</td><td class=n>3931</td></tr><tr><td><code>server_nonconc</code></td><td class=n>58.2</td><td class=n>38.4 · 39.1 · 40.5</td><td class=n><b>39.3</b></td><td class=n>0.86×</td><td class=n>250</td><td class=n>0.72×</td><td class=n>8</td><td class=n>4250</td></tr><tr><td><code>server_ccd0_nonconc</code></td><td class=n>47.3</td><td class=n>41.8 · 39.6 · 38.5</td><td class=n><b>40.0</b></td><td class=n>0.88×</td><td class=n>246</td><td class=n>0.71×</td><td class=n>9</td><td class=n>4111</td></tr><tr><td><code>server_ccd0_nonconc_datas</code></td><td class=n>50.0</td><td class=n>41.1 · 36.4 · 35.7</td><td class=n><b>37.7</b></td><td class=n>0.83×</td><td class=n>254</td><td class=n>0.73×</td><td class=n>9</td><td class=n>5926</td></tr><tr><td><code>server_ccd0_nonconc_heapsall</code></td><td class=n>59.2</td><td class=n>62.3 · 60.1 · 53.4</td><td class=n><b>58.6</b></td><td class=n>1.28×</td><td class=n>307</td><td class=n>0.89×</td><td class=n>9</td><td class=n>4166</td></tr></table></div>
+<h3>Fantomas (fantomas.slnx, many projects, mostly dependency chains)</h3>
+<p>Built with this repo's main compiler and targets, so <code>-p:LangVersion=11</code> is passed to every config: main's targets no longer
+default preview SDKs to F# 11 (the SDK's do), and Fantomas.Tests does not compile with main's newer default language version.</p>
+<div class=tw><table><tr><th>config</th><th>warm-up (cold workers) s</th><th>measured builds s</th><th>mean s</th><th>vs flags</th><th>CPU s</th><th>CPU vs flags</th><th>workers</th><th>worker RSS MB</th></tr><tr><td><code>baseline</code></td><td class=n>29.2</td><td class=n>29.2 · 31.7 · 29.7</td><td class=n><b>30.2</b></td><td class=n>1.20×</td><td class=n>95</td><td class=n>1.01×</td><td class=n>0</td><td class=n>0</td></tr><tr><td><code>flags</code></td><td class=n>25.2</td><td class=n>25.3 · 25.5 · 25.0</td><td class=n><b>25.3</b></td><td class=n>1.00×</td><td class=n>94</td><td class=n>1.00×</td><td class=n>0</td><td class=n>0</td></tr><tr><td><code>server_ccd0_nonconc</code></td><td class=n>22.5</td><td class=n>19.7 · 19.7 · 19.7</td><td class=n><b>19.7</b></td><td class=n>0.78×</td><td class=n>53</td><td class=n>0.56×</td><td class=n>3</td><td class=n>4381</td></tr><tr><td><code>server_ccd0_nonconc_datas</code></td><td class=n>22.2</td><td class=n>20.2 · 19.9 · 20.3</td><td class=n><b>20.1</b></td><td class=n>0.80×</td><td class=n>61</td><td class=n>0.65×</td><td class=n>3</td><td class=n>2367</td></tr></table></div>
+<h3>Final: the branch's new defaults, no overrides</h3>
+<div class=tw><table><tr><th>config</th><th>warm-up (cold workers) s</th><th>measured builds s</th><th>mean s</th><th>vs flags</th><th>CPU s</th><th>CPU vs flags</th><th>workers</th><th>worker RSS MB</th></tr><tr><td><code>server</code> FCS slnx</td><td class=n>48.3</td><td class=n>44.7 · 55.3 · 41.9</td><td class=n><b>47.3</b></td><td class=n>–</td><td class=n>239</td><td class=n>–</td><td class=n>9</td><td class=n>4290</td></tr><tr><td><code>server</code> FCS slnx, repeat</td><td class=n>46.2</td><td class=n>45.6 · 38.0 · 40.8 · 37.5 · 37.5</td><td class=n><b>39.9</b></td><td class=n>–</td><td class=n>239</td><td class=n>–</td><td class=n>9</td><td class=n>4591</td></tr><tr><td><code>server</code> Fantomas</td><td class=n>21.7</td><td class=n>19.8 · 19.4 · 19.0</td><td class=n><b>19.4</b></td><td class=n>–</td><td class=n>52</td><td class=n>–</td><td class=n>3</td><td class=n>3702</td></tr></table></div>
+<p>Stock + JIT flags for reference: 45.7 s (FCS slnx, table above) and 25.3 s (Fantomas). The first FCS run contains one of
+the unexplained slow builds (55.3 s); the repeat's first build started with 2.5 cores of outside load.</p>
+
+<h2>Not done yet, worth trying next</h2>
+<ul>
+<li><b>Find the occasional slow build</b>: every log now has its own name; take per-compilation timing from the binlog of the next slow one.</li>
+<li><b>Pre-warm new workers</b>: start one spare worker ahead of need, or let a new worker compile a small embedded sample before its
+first request. Fast tier-up already removed most of the cold cost, so this is worth it only if cold builds still matter.</li>
+<li><b>Allocation profile of FCS</b> (33 GB per compilation): the largest remaining cost for big projects, with or without the server.</li>
+<li><b>Linux x64 with many cores</b> (your work setup): the heap count and the non-concurrent GC choice should be checked there, where
+more compilations run at once.</li>
+<li><b>Ship</b>: <code>dotnet build-server shutdown</code> integration (dotnet/sdk), a version handshake and worker logging.</li>
+</ul>
+</main></body></html>

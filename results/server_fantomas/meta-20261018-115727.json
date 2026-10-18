@@ -1,0 +1,23 @@
+{
+ "argv": [
+  "scripts/serverbench.py",
+  "--repo",
+  "repos/fantomas",
+  "--sln",
+  "fantomas.slnx",
+  "--extra=-p:LangVersion=11",
+  "--configs",
+  "baseline,flags,server_ccd0_nonconc,server_ccd0_nonconc_datas",
+  "--runs",
+  "3",
+  "--warmup",
+  "1",
+  "--out",
+  "results/server_fantomas"
+ ],
+ "start": "2026-10-18T11:57:27+0100",
+ "commit": "f734124bcc4406be0a7b592c00b9de3167d32125",
+ "server_commit": "c6bd13a50aeb3919afc7206ba821df515e08f0c0",
+ "ncpu": 11,
+ "outputs": 0
+}
