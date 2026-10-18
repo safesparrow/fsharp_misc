@@ -68,7 +68,8 @@ svg .box{fill:var(--card);stroke:var(--line)}
 main{max-width:1240px;margin:0 auto} a{color:var(--accent)}</style></head><body><main>
 <h1>F# Compiler Server: making it faster</h1>
 <p class=sub>Per-compilation and whole-build experiments on the compiler server branch (<code>repos/server</code>), 2026-10-18,
-11-core Apple M-series. Plan: <a href="plan.html">plan.html</a> · first results: <a href="results.html">results.html</a>.</p>
+11-core Apple M-series. Plan: <a href="plan.html">plan.html</a> · first results: <a href="results.html">results.html</a> ·
+code: <a href="https://github.com/safesparrow/fsharp/tree/compiler_server">compiler_server</a> (<a href="https://github.com/safesparrow/fsharp/compare/99406265c88090c50e575afe8474f0979aa6f815...compiler_server">diff</a>).</p>
 <h2>Summary</h2>
 <ul>
   <li><b>Your result reproduces.</b> Per compilation, a warm worker is much faster than stock fsc + JIT flags, in both wall time and CPU. Summed over 5 projects, the wall time falls by 25–30% and CPU by 35–45%. Small and medium projects take 0.2–0.6× of the flags' time; FCS takes 0.85–0.9×.</li>

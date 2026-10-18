@@ -21,6 +21,15 @@ a { color: var(--accent); } li { margin-bottom: 8px; } .sub { color: var(--ink2)
   <li><a href="phase3/report.html">Runtime knobs on top of the JIT flags</a> (<a href="phase3/report.md">MD</a>)<br>
     <span class="sub">GC, JIT and ReadyToRun settings on FCS, FSharp.Core, FSharp.Build and a whole Fantomas build. Preliminary (quick pass).</span></li>
 </ul>
+<h2>F# compiler server</h2>
+<ul>
+  <li><a href="server/report_standalone.html">Compiler server: performance</a><br>
+    <span class="sub">Long-lived fsc.dll workers behind the Fsc task vs stock fsc and stock fsc + JIT flags: per compilation, whole builds (FCS solution, Fantomas), worker settings, ranked findings.</span></li>
+  <li><a href="server/detail_standalone.html">Detailed explorer</a> · <a href="server/partc_standalone.html">Parallel type checking on/off</a><br>
+    <span class="sub">Interactive: every metric, config and compilation; graph-based type checking vs sequential on warm workers.</span></li>
+  <li><a href="server/investigation.html">Investigation notes</a> · <a href="server/results.html">First whole-build results</a> · <a href="server/plan.html">Design and plan</a></li>
+  <li>Code: branch <a href="https://github.com/safesparrow/fsharp/tree/compiler_server">compiler_server</a> on safesparrow/fsharp (<a href="https://github.com/safesparrow/fsharp/compare/99406265c88090c50e575afe8474f0979aa6f815...compiler_server">diff</a>).</li>
+</ul>
 <p class="sub">Scripts and raw data: the repository this site is built from.</p>
 </body>
 </html>

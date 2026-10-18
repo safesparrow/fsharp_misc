@@ -12,6 +12,11 @@ ReadyToRun, laid out the way the .NET SDK ships them.
 - GitHub Pages serves the root of `main`, so a push updates the site.
 - All report numbers: [`reports/data/summary.json`](reports/data/summary.json). Raw runs: `results/*/runs.jsonl`.
 - Plan and context: [`PLAN.md`](PLAN.md)
+- F# compiler server (long-lived fsc.dll workers behind the Fsc task): https://safesparrow.github.io/fsharp_misc/reports/server/report_standalone.html
+  (detailed explorer: `reports/server/detail_standalone.html`, parallel type checking: `reports/server/partc_standalone.html`).
+  Code: branch [`compiler_server`](https://github.com/safesparrow/fsharp/tree/compiler_server) on the fork
+  ([diff](https://github.com/safesparrow/fsharp/compare/99406265c88090c50e575afe8474f0979aa6f815...compiler_server)).
+  Scripts: `scripts/fscbench.py`, `serverbench.py`, `partc_bench.py`, `sample_fsc.py`, `report_server_full.py`, `report_server_detail.py`.
 - Compiler change under test: branch [`jit_flags`](https://github.com/safesparrow/fsharp/tree/jit_flags) on the fork.
 
 ## Layout

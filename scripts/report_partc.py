@@ -56,6 +56,7 @@ def main():
 - **FSharp.Core is a built-in control:** the compiler never uses graph-based checking for FSharp.Core (`ParseAndCheckInputs.fs:1879`, `not tcConfig.compilingFSharpCore`), so its three compilations run the same code in both modes: {", ".join(f"{p.split('__')[1]} {100 * cmp[p]['seq_tc']['wall_s']['d']:+.0f}%" for p in core)}. Without them, the 14 other compilations: wall {100 * (tsum(rest, 'seq_tc') / tsum(rest, 'par') - 1):+.0f}% ({tsum(rest, 'par'):.1f} s → {tsum(rest, 'seq_tc'):.1f} s), CPU {100 * (tsum(rest, 'seq_tc', 'cpu_s') / tsum(rest, 'par', 'cpu_s') - 1):+.0f}%.
 - **GC:** worker GC pause {fp(T['gc_pause_ms'])}, allocations {fp(T['alloc_mb'])}.
 - **Outputs:** {len(same)} of {len(projects)} compilations produce identical assemblies in both modes{'' if not differ else '; different: ' + ', '.join(p.replace('__', ' · ') for p in differ)}.
+- Code: branch [compiler_server](https://github.com/safesparrow/fsharp/tree/compiler_server) ([diff](https://github.com/safesparrow/fsharp/compare/99406265c88090c50e575afe8474f0979aa6f815...compiler_server)); summary report: [report_standalone.html](report_standalone.html).
 - Setup: two warm compiler server workers (one per mode, the branch's default worker settings), each compilation 5 times per mode after a warm-up round, one compilation at a time, modes alternating.
 """
     hw = json.loads((ROOT / "results" / "hardware.json").read_text())

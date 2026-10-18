@@ -224,7 +224,8 @@ def main():
 main{{max-width:1240px;margin:0 auto}} a{{color:var(--accent)}}</style></head><body><main>
 <h1>F# Compiler Server: making it faster</h1>
 <p class=sub>Per-compilation and whole-build experiments on the compiler server branch (<code>repos/server</code>), 2026-10-18,
-11-core Apple M-series. Plan: <a href="plan.html">plan.html</a> · first results: <a href="results.html">results.html</a>.</p>
+11-core Apple M-series. Plan: <a href="plan.html">plan.html</a> · first results: <a href="results.html">results.html</a> ·
+code: <a href="https://github.com/safesparrow/fsharp/tree/compiler_server">compiler_server</a> (<a href="https://github.com/safesparrow/fsharp/compare/99406265c88090c50e575afe8474f0979aa6f815...compiler_server">diff</a>).</p>
 {(ROOT / 'reports' / 'server' / 'investigation_summary.html').read_text() if (ROOT / 'reports' / 'server' / 'investigation_summary.html').exists() else ''}
 <h2>Findings, ranked by benefit for the effort</h2>
 <div class=tw><table><tr><th>#</th><th>Change</th><th>Measured effect</th><th>Complexity</th><th>Verdict</th></tr>{ftrs}</table></div>

@@ -168,6 +168,7 @@ def main():
         "(Tiered PGO kept) so a new worker tiers up fast, and non-concurrent GC.",
         "**Small and medium projects gain most** (0.2–0.6× of the flags' time); FCS gains least: its JIT is only 2–3% of CPU, GC is 31–39%.",
         "**Outputs are identical to stock** for every compilation and build (assemblies, reference assemblies, embedded PDBs).",
+        "**Code:** branch [compiler_server](https://github.com/safesparrow/fsharp/tree/compiler_server) on safesparrow/fsharp ([diff against main @ 99406265](https://github.com/safesparrow/fsharp/compare/99406265c88090c50e575afe8474f0979aa6f815...compiler_server)).",
     ]
     findings = [
         ["Compile in long-lived workers (the server)", f"Per compilation {fmt(tot['wall_s']['best'])} wall, {fmt(tot['cpu_s']['best'])} CPU vs stock + flags; builds {fmt(best_fan['wall'])} (Fantomas), {fmt(best_fcs['wall'])} (FCS slnx)", "built", "done"],

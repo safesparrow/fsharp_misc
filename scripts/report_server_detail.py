@@ -136,6 +136,7 @@ def main():
 - **Rejected:** TieredPGO=0 in workers (wall {fp(t['srv']['srv_pgo0']['wall_s'])}), keeping assembly caches ({fp(t['srv']['srv_reuse']['wall_s'])}), no idle GC ({fp(t['srv']['srv_noidlegc']['wall_s'])}). 11 heaps help one compilation but hurt parallel builds.
 - Use **Compared with** to switch the reference between stock, stock + JIT flags and the first-version worker; GC pause and allocations are measured inside workers only.
 - Whole builds and the ranked findings: [report_standalone.html](report_standalone.html); investigation notes: [investigation.html](investigation.html).
+- Code: branch [compiler_server](https://github.com/safesparrow/fsharp/tree/compiler_server) ([diff against main @ 99406265](https://github.com/safesparrow/fsharp/compare/99406265c88090c50e575afe8474f0979aa6f815...compiler_server)).
 """
     data = dict(
         meta=dict(title="F# compiler server: per-compilation results", generated=time.strftime("%Y-%m-%d %H:%M"),

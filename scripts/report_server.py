@@ -151,7 +151,8 @@ main{{max-width:1100px;margin:0 auto}} a{{color:var(--accent)}}
 <body><main>
 <h1>F# Compiler Server: results</h1>
 <p class=sub>Compiler <code>repos/server</code> @ {html.escape(m.get('server_commit', '')[:10])}, built solution: dotnet/fsharp
-<code>main</code> @ {html.escape(m.get('commit', '')[:10])}. Recorded {html.escape(m.get('start', ''))}. Plan: <a href="plan.html">plan.html</a>.</p>
+<code>main</code> @ {html.escape(m.get('commit', '')[:10])}. Recorded {html.escape(m.get('start', ''))}. Plan: <a href="plan.html">plan.html</a>.
+Code: <a href="https://github.com/safesparrow/fsharp/tree/compiler_server">compiler_server</a> (<a href="https://github.com/safesparrow/fsharp/compare/99406265c88090c50e575afe8474f0979aa6f815...compiler_server">diff</a>). Later, more complete results: <a href="report_standalone.html">report</a>.</p>
 {headline}
 {findings_html}
 <h2>Wall time per build</h2>
