@@ -195,6 +195,11 @@ def main():
     i = main_t.index("\n", main_t.index("/* @shared-begin")) + 1
     page = page.replace("//@SHARED_JS", main_t[i:main_t.index("/* @shared-end */", i)])
     (OUT / "report.html").write_text(page)
+    # Self-contained copy (data inlined) for sharing as a single file
+    js = (OUT / "data" / "report-data.js").read_text()
+    (OUT / "report_standalone.html").write_text(
+        page.replace('<script src="data/report-data.js"></script>', "<script>\n" + js + "</script>")
+            .replace('data: <a href="data/report-data.js">data/report-data.js</a>', "data inlined"))
     print(f"wrote {OUT / 'report.html'}")
 
 
