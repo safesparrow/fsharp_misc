@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compiler Server Results</title>
+<style>
+:root{
+  --bg:#fbfaf8; --fg:#1d1d1f; --muted:#5f6368; --line:#d9d6d0; --card:#ffffff; --code:#f2efe9;
+  --accent:#2f6fde; --accent-soft:#e3ecfc; --ok:#1f8a4c; --ok-soft:#e1f3e8; --warn:#b26a00; --warn-soft:#fbf0dc;
+  --bad:#c0392b; --bad-soft:#f9e3e0; --node:#f4f2ee; --worker:#e6f0e9; --client:#e3ecfc;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16171a; --fg:#e8e6e3; --muted:#a2a5ab; --line:#34363b; --card:#1e2024; --code:#26282d;
+    --accent:#7aa7ff; --accent-soft:#1f2b44; --ok:#5cc98a; --ok-soft:#173226; --warn:#f0b35a; --warn-soft:#3a2d16;
+    --bad:#ff8a7a; --bad-soft:#3d201c; --node:#25272c; --worker:#1b2e23; --client:#1f2b44;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16171a; --fg:#e8e6e3; --muted:#a2a5ab; --line:#34363b; --card:#1e2024; --code:#26282d;
+  --accent:#7aa7ff; --accent-soft:#1f2b44; --ok:#5cc98a; --ok-soft:#173226; --warn:#f0b35a; --warn-soft:#3a2d16;
+  --bad:#ff8a7a; --bad-soft:#3d201c; --node:#25272c; --worker:#1b2e23; --client:#1f2b44;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+.wrap{display:grid;grid-template-columns:230px minmax(0,1fr);max-width:1240px;margin:0 auto}
+nav{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:28px 16px;border-right:1px solid var(--line);font-size:13.5px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:3px 0}
+nav a:hover{color:var(--accent)}
+nav .t{font-weight:650;color:var(--fg);margin-bottom:10px}
+main{padding:28px 40px 80px;min-width:0}
+h1{font-size:28px;margin:0 0 4px}
+h2{font-size:21px;margin:44px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:24px 0 8px}
+p,li{max-width:80ch}
+.sub{color:var(--muted);margin:0 0 20px}
+code{font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code);padding:1px 5px;border-radius:4px}
+pre{font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code);padding:12px 14px;border-radius:8px;overflow:auto}
+pre code{background:none;padding:0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:16px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.card b{display:block;margin-bottom:4px}
+.card span{color:var(--muted);font-size:13.5px}
+.card code{word-break:break-all}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:var(--card)}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+th{background:var(--node);font-weight:600}
+.tw{overflow-x:auto}
+.pill{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;font-weight:600}
+.p-ok{background:var(--ok-soft);color:var(--ok)} .p-warn{background:var(--warn-soft);color:var(--warn)}
+.p-bad{background:var(--bad-soft);color:var(--bad)} .p-acc{background:var(--accent-soft);color:var(--accent)}
+figure{margin:18px 0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+figcaption{color:var(--muted);font-size:13px;margin-top:8px}
+svg{width:100%;height:auto;display:block}
+svg text{fill:var(--fg);font:12.5px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+svg .m{fill:var(--muted);font-size:11.5px}
+svg .b{font-weight:650}
+svg .node{fill:var(--node);stroke:var(--line)}
+svg .client{fill:var(--client);stroke:var(--accent)}
+svg .worker{fill:var(--worker);stroke:var(--ok)}
+svg .gone{fill:none;stroke:var(--bad);stroke-dasharray:5 4}
+svg .ln{stroke:var(--muted);stroke-width:1.4;fill:none}
+svg .acc{stroke:var(--accent);stroke-width:1.6;fill:none}
+svg .okl{stroke:var(--ok);stroke-width:1.6;fill:none}
+svg .life{stroke:var(--line);stroke-width:1.2;stroke-dasharray:4 4}
+svg .box{fill:var(--card);stroke:var(--line)}
+.callout{border-left:4px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 8px 8px 0;margin:14px 0}
+.callout.warn{border-color:var(--warn);background:var(--warn-soft)}
+@media (max-width:860px){.wrap{display:block}nav{display:none}main{padding:20px 16px 60px}}
+</style>
+<style>
+:root{--c1:#8a8f98;--c2:#d08a2c;--c3:#2f8f5b;--c4:#5b8fd0}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+svg .grid{stroke:var(--line);stroke-width:1}
+.lead{font-size:16.5px}
+main{max-width:1100px;margin:0 auto} a{color:var(--accent)}
+</style></head>
+<body><main>
+<h1>F# Compiler Server: results</h1>
+<p class=sub>Compiler <code>repos/server</code> @ 2df01fc34c, built solution: dotnet/fsharp
+<code>main</code> @ 99406265c8. Recorded 2026-10-18T09:48:01+0100. Plan: <a href="plan.html">plan.html</a>.</p>
+<p class=lead>Whole build of <code>FSharp.Compiler.Service.slnx</code>, mean of the measured runs: compiler server <b>48.8 s</b> vs stock <b>66.1 s</b> (<b>1.35×</b>) and vs stock + JIT flags <b>45.9 s</b> (<b>0.94×</b>).</p>
+<h2>Findings</h2>
+<h3>Correctness</h3>
+<ul>
+  <li><b>Identical to stock.</b> Across all 9 server builds (cold and warm), every compilation output matches a hash that a stock build also produced. That covers 17 assemblies with embedded PDBs, 17 XML docs and the reference assemblies. The diagnostics match too.</li>
+  <li><b>No fallbacks.</b> In every server build, workers served all 17 compilations and none fell back to a stock process. No worker retired, since this solution doesn't load type providers during compilation.</li>
+  <li><b>Stock <code>main</code> is still non-deterministic for reference assemblies under load.</b>
+    <ul>
+      <li>Three stock builds produced three different <code>refint/FSharp.Compiler.Service.dll</code> (net11.0), and one stock build produced a different <code>refint/FSharp.Core.dll</code> (net10.0). The main assemblies were identical every time.</li>
+      <li>Replaying the FCS compilation with the stock compiler: three replays one after another gave identical output. Four replays running at the same time gave two variants.</li>
+      <li>The variants differ in 36 bytes, which look like the PE timestamp, the MVID and one other 16-byte field. In a deterministic build the timestamp and MVID are derived from the signature hash (<code>SignatureHash.calculateSignatureHashOfFiles</code>, <code>fsc.fs:869</code>). So that hash still varies with thread timing, even with #19751 (<code>85e2e2189</code>, included here) fixed.</li>
+      <li>The server outputs are always one of the stock variants.</li>
+    </ul></li>
+</ul>
+<h3>Performance (whole build, 11-core M-series)</h3>
+<ul>
+  <li><b>As requested (1 warm-up + 2 runs):</b> stock 66.1 s, stock + JIT flags 45.9 s, server 48.8 s (runs of 55.2 s and 42.5 s). The server is 1.35× faster than stock and 6% slower than the flags.</li>
+  <li><b>Longer server sequence (1 warm-up + 5 runs, extra):</b> 43.4, 46.3, 53.0, 45.3 and 37.9 s, mean 45.2 s. That is 1.46× faster than stock and level with the flags (45.9 s).</li>
+  <li><b>CPU drops sharply.</b> The server uses about 265 s of CPU per build, against 491 s for stock (−46%) and 342 s for the flags (−23%). The work is no longer re-JIT'd in every process.</li>
+  <li><b>The server is noisy.</b> Warm server builds range from 37.9 to 55.2 s, while stock and flags repeat within about 1 s. The likely cause is which warm worker picks up the large compilations, which are on the critical path: the client takes the lowest free slot, so the assignment changes from build to build. The 5-heap GC configuration is another candidate. Neither has been measured yet.</li>
+  <li><b>The cold server build costs about the same as stock</b> (68.7 and 78.5 s, against 73.0 s for the stock warm-up). Up to 9 workers start and JIT the compiler from scratch.</li>
+  <li><b>Memory.</b> Up to 9 workers stay alive. Their combined RSS right after a build is 3.5–4.6 GB, measured before the idle GC compaction runs.</li>
+</ul>
+<h3>Next experiments</h3>
+<ul>
+  <li><b>Worker affinity.</b> Send a project to the worker that compiled it last time, and big compilations to the warmest worker. That should cut the variance and the warm build time.</li>
+  <li><b>Workers + JIT flags.</b> The plan keeps custom flags out of the workers. They still pay tiering cost on code they haven't run yet, so measuring the flags on workers would show how much that costs.</li>
+  <li><b>GC heap count:</b> compare 5 heaps, DATAS and 11 heaps.</li>
+  <li><b>Opt-in cache reuse</b> (IL readers for framework and NuGet references).</li>
+</ul>
+
+<h2>Wall time per build</h2>
+<figure><svg viewBox="0 0 940 460" role="img" aria-label="Wall time per build"><line x1="300.0" y1="6" x2="300.0" y2="434" class="grid"/><text x="300.0" y="450" text-anchor="middle" class="m">0s</text><line x1="364.9" y1="6" x2="364.9" y2="434" class="grid"/><text x="364.9" y="450" text-anchor="middle" class="m">10s</text><line x1="429.8" y1="6" x2="429.8" y2="434" class="grid"/><text x="429.8" y="450" text-anchor="middle" class="m">20s</text><line x1="494.7" y1="6" x2="494.7" y2="434" class="grid"/><text x="494.7" y="450" text-anchor="middle" class="m">30s</text><line x1="559.6" y1="6" x2="559.6" y2="434" class="grid"/><text x="559.6" y="450" text-anchor="middle" class="m">40s</text><line x1="624.5" y1="6" x2="624.5" y2="434" class="grid"/><text x="624.5" y="450" text-anchor="middle" class="m">50s</text><line x1="689.4" y1="6" x2="689.4" y2="434" class="grid"/><text x="689.4" y="450" text-anchor="middle" class="m">60s</text><line x1="754.2" y1="6" x2="754.2" y2="434" class="grid"/><text x="754.2" y="450" text-anchor="middle" class="m">70s</text><line x1="819.1" y1="6" x2="819.1" y2="434" class="grid"/><text x="819.1" y="450" text-anchor="middle" class="m">80s</text><text x="292" y="25" text-anchor="end">baseline (stock fsc) · warmup</text><rect x="300" y="10" width="473.8" height="22" rx="3" style="fill:var(--c1);opacity:0.45"/><text x="779.8" y="25" class="m">73.0 s</text><text x="292" y="53" text-anchor="end">baseline (stock fsc) · run1</text><rect x="300" y="38" width="434.1" height="22" rx="3" style="fill:var(--c1);opacity:1"/><text x="740.1" y="53" class="m">66.9 s</text><text x="292" y="81" text-anchor="end">baseline (stock fsc) · run2</text><rect x="300" y="66" width="423.8" height="22" rx="3" style="fill:var(--c1);opacity:1"/><text x="729.8" y="81" class="m">65.3 s</text><text x="292" y="109" text-anchor="end">baseline + JIT flags · warmup</text><rect x="300" y="94" width="298.6" height="22" rx="3" style="fill:var(--c2);opacity:0.45"/><text x="604.6" y="109" class="m">46.0 s</text><text x="292" y="137" text-anchor="end">baseline + JIT flags · run1</text><rect x="300" y="122" width="296.6" height="22" rx="3" style="fill:var(--c2);opacity:1"/><text x="602.6" y="137" class="m">45.7 s</text><text x="292" y="165" text-anchor="end">baseline + JIT flags · run2</text><rect x="300" y="150" width="299.2" height="22" rx="3" style="fill:var(--c2);opacity:1"/><text x="605.2" y="165" class="m">46.1 s</text><text x="292" y="193" text-anchor="end">compiler server · warmup</text><rect x="300" y="178" width="446.0" height="22" rx="3" style="fill:var(--c3);opacity:0.45"/><text x="752.0" y="193" class="m">68.7 s</text><text x="292" y="221" text-anchor="end">compiler server · run1</text><rect x="300" y="206" width="357.9" height="22" rx="3" style="fill:var(--c3);opacity:1"/><text x="663.9" y="221" class="m">55.2 s</text><text x="292" y="249" text-anchor="end">compiler server · run2</text><rect x="300" y="234" width="275.7" height="22" rx="3" style="fill:var(--c3);opacity:1"/><text x="581.7" y="249" class="m">42.5 s</text><text x="292" y="277" text-anchor="end">compiler server, longer sequence · warmup</text><rect x="300" y="262" width="509.1" height="22" rx="3" style="fill:var(--c4);opacity:0.45"/><text x="815.1" y="277" class="m">78.5 s</text><text x="292" y="305" text-anchor="end">compiler server, longer sequence · run1</text><rect x="300" y="290" width="281.5" height="22" rx="3" style="fill:var(--c4);opacity:1"/><text x="587.5" y="305" class="m">43.4 s</text><text x="292" y="333" text-anchor="end">compiler server, longer sequence · run2</text><rect x="300" y="318" width="300.7" height="22" rx="3" style="fill:var(--c4);opacity:1"/><text x="606.7" y="333" class="m">46.3 s</text><text x="292" y="361" text-anchor="end">compiler server, longer sequence · run3</text><rect x="300" y="346" width="343.9" height="22" rx="3" style="fill:var(--c4);opacity:1"/><text x="649.9" y="361" class="m">53.0 s</text><text x="292" y="389" text-anchor="end">compiler server, longer sequence · run4</text><rect x="300" y="374" width="293.8" height="22" rx="3" style="fill:var(--c4);opacity:1"/><text x="599.8" y="389" class="m">45.3 s</text><text x="292" y="417" text-anchor="end">compiler server, longer sequence · run5</text><rect x="300" y="402" width="245.8" height="22" rx="3" style="fill:var(--c4);opacity:1"/><text x="551.8" y="417" class="m">37.9 s</text></svg><figcaption>Faded bars are the warm-up builds. For the server, the warm-up build is the cold start: it
+starts the workers, which then JIT the compiler. Each config ran 1 warm-up and 2 measured builds,
+sequentially, with MSBuild node reuse off. The longer server sequence (1 warm-up and 5
+measured builds) is an extra run, beyond the requested protocol.</figcaption></figure>
+
+<h2>Speedup (measured runs)</h2>
+<div class=tw><table><tr><th>Config</th><th>wall s</th><th>CPU s</th><th>speedup vs stock</th><th>Δ wall vs stock</th>
+<th>speedup vs stock + flags</th><th>Δ CPU vs stock</th></tr><tr><td>baseline (stock fsc)</td><td class=n>66.1</td><td class=n>491.0</td><td class=n>1.00×</td><td class=n>0.0%</td><td class=n>0.69×</td><td class=n>0.0%</td></tr><tr><td>baseline + JIT flags</td><td class=n>45.9</td><td class=n>341.9</td><td class=n>1.44×</td><td class=n>-30.6%</td><td class=n>1.00×</td><td class=n>-30.4%</td></tr><tr><td>compiler server</td><td class=n>48.8</td><td class=n>263.7</td><td class=n>1.35×</td><td class=n>-26.1%</td><td class=n>0.94×</td><td class=n>-46.3%</td></tr><tr><td>compiler server, longer sequence</td><td class=n>45.2</td><td class=n>267.5</td><td class=n>1.46×</td><td class=n>-31.7%</td><td class=n>1.02×</td><td class=n>-45.5%</td></tr></table></div>
+
+<h2>Every build</h2>
+<p>Outputs: the assembly (with its embedded PDB), the reference assembly and the XML doc of all 17 compilations, 48 files,
+compared by SHA-256. Stock builds are not deterministic for 2 of them (net11.0/refint/FSharp.Compiler.Service.dll, net10.0/refint/FSharp.Core.dll),
+so a build passes when every file matches a hash some stock build produced. Diagnostics: the distinct
+<code>warning/error FS</code> lines of the build log.</p>
+<div class=tw><table><tr><th>Config</th><th>Build</th><th>wall s</th><th>CPU s</th><th>worker CPU s</th><th>workers alive</th>
+<th>workers started</th><th>worker RSS MB</th><th>identical to 1st stock build</th><th>outputs no stock build produced</th><th>diagnostics</th></tr><tr><td>baseline (stock fsc)</td><td>warmup</td><td class=n>73.0</td><td class=n>479.5</td><td class=n>0.0</td><td class=n>0</td><td class=n>0</td><td class=n>0</td><td class=n>48/48</td><td><span class="pill p-ok">none</span></td><td><span class="pill p-ok">same</span></td></tr><tr><td>baseline (stock fsc)</td><td>run1</td><td class=n>66.9</td><td class=n>493.9</td><td class=n>0.0</td><td class=n>0</td><td class=n>0</td><td class=n>0</td><td class=n>47/48</td><td><span class="pill p-ok">none</span><br><small>other stock variant: FSharp.Compiler.Service.dll</small></td><td><span class="pill p-ok">same</span></td></tr><tr><td>baseline (stock fsc)</td><td>run2</td><td class=n>65.3</td><td class=n>488.1</td><td class=n>0.0</td><td class=n>0</td><td class=n>0</td><td class=n>0</td><td class=n>47/48</td><td><span class="pill p-ok">none</span><br><small>other stock variant: FSharp.Compiler.Service.dll</small></td><td><span class="pill p-ok">same</span></td></tr><tr><td>baseline + JIT flags</td><td>warmup</td><td class=n>46.0</td><td class=n>342.2</td><td class=n>0.0</td><td class=n>0</td><td class=n>0</td><td class=n>0</td><td class=n>46/48</td><td><span class="pill p-ok">none</span><br><small>other stock variant: FSharp.Compiler.Service.dll, FSharp.Core.dll</small></td><td><span class="pill p-ok">same</span></td></tr><tr><td>baseline + JIT flags</td><td>run1</td><td class=n>45.7</td><td class=n>341.4</td><td class=n>0.0</td><td class=n>0</td><td class=n>0</td><td class=n>0</td><td class=n>47/48</td><td><span class="pill p-ok">none</span><br><small>other stock variant: FSharp.Compiler.Service.dll</small></td><td><span class="pill p-ok">same</span></td></tr><tr><td>baseline + JIT flags</td><td>run2</td><td class=n>46.1</td><td class=n>342.4</td><td class=n>0.0</td><td class=n>0</td><td class=n>0</td><td class=n>0</td><td class=n>47/48</td><td><span class="pill p-ok">none</span><br><small>other stock variant: FSharp.Compiler.Service.dll</small></td><td><span class="pill p-ok">same</span></td></tr><tr><td>compiler server</td><td>warmup</td><td class=n>68.7</td><td class=n>478.3</td><td class=n>415.6</td><td class=n>9</td><td class=n>9</td><td class=n>4015</td><td class=n>48/48</td><td><span class="pill p-ok">none</span></td><td><span class="pill p-ok">same</span></td></tr><tr><td>compiler server</td><td>run1</td><td class=n>55.2</td><td class=n>289.2</td><td class=n>230.1</td><td class=n>9</td><td class=n>0</td><td class=n>4259</td><td class=n>47/48</td><td><span class="pill p-ok">none</span><br><small>other stock variant: FSharp.Compiler.Service.dll</small></td><td><span class="pill p-ok">same</span></td></tr><tr><td>compiler server</td><td>run2</td><td class=n>42.5</td><td class=n>238.2</td><td class=n>186.4</td><td class=n>9</td><td class=n>0</td><td class=n>4030</td><td class=n>47/48</td><td><span class="pill p-ok">none</span><br><small>other stock variant: FSharp.Compiler.Service.dll</small></td><td><span class="pill p-ok">same</span></td></tr><tr><td>compiler server, longer sequence</td><td>warmup</td><td class=n>78.5</td><td class=n>383.1</td><td class=n>326.8</td><td class=n>9</td><td class=n>9</td><td class=n>5825</td><td class=n>47/48</td><td><span class="pill p-ok">none</span><br><small>other stock variant: FSharp.Compiler.Service.dll</small></td><td><span class="pill p-ok">same</span></td></tr><tr><td>compiler server, longer sequence</td><td>run1</td><td class=n>43.4</td><td class=n>260.1</td><td class=n>201.2</td><td class=n>9</td><td class=n>0</td><td class=n>3991</td><td class=n>47/48</td><td><span class="pill p-ok">none</span><br><small>other stock variant: FSharp.Compiler.Service.dll</small></td><td><span class="pill p-ok">same</span></td></tr><tr><td>compiler server, longer sequence</td><td>run2</td><td class=n>46.3</td><td class=n>305.9</td><td class=n>240.9</td><td class=n>9</td><td class=n>0</td><td class=n>4579</td><td class=n>47/48</td><td><span class="pill p-ok">none</span><br><small>other stock variant: FSharp.Compiler.Service.dll</small></td><td><span class="pill p-ok">same</span></td></tr><tr><td>compiler server, longer sequence</td><td>run3</td><td class=n>53.0</td><td class=n>272.1</td><td class=n>211.2</td><td class=n>9</td><td class=n>0</td><td class=n>3458</td><td class=n>47/48</td><td><span class="pill p-ok">none</span><br><small>other stock variant: FSharp.Compiler.Service.dll</small></td><td><span class="pill p-ok">same</span></td></tr><tr><td>compiler server, longer sequence</td><td>run4</td><td class=n>45.3</td><td class=n>258.9</td><td class=n>197.8</td><td class=n>9</td><td class=n>0</td><td class=n>4135</td><td class=n>47/48</td><td><span class="pill p-ok">none</span><br><small>other stock variant: FSharp.Compiler.Service.dll</small></td><td><span class="pill p-ok">same</span></td></tr><tr><td>compiler server, longer sequence</td><td>run5</td><td class=n>37.9</td><td class=n>240.6</td><td class=n>178.3</td><td class=n>9</td><td class=n>0</td><td class=n>3576</td><td class=n>48/48</td><td><span class="pill p-ok">none</span></td><td><span class="pill p-ok">same</span></td></tr></table></div>
+
+<h2>Who compiled what</h2><p>From the build logs (binlog replay): compilations served by a worker, compilations that fell back to a stock process, and how the 17 compilations spread over workers.</p><div class=tw><table><tr><th>Build</th><th>by a worker</th><th>stock fallback</th><th>per worker</th></tr><tr><td>server warmup</td><td class=n>17</td><td class=n>0</td><td>5 · 4 · 2 · 1 · 1 · 1 · 1 · 1 · 1</td></tr><tr><td>server run1</td><td class=n>17</td><td class=n>0</td><td>6 · 5 · 2 · 2 · 1 · 1</td></tr><tr><td>server run2</td><td class=n>17</td><td class=n>0</td><td>6 · 5 · 3 · 1 · 1 · 1</td></tr><tr><td>server_long warmup</td><td class=n>17</td><td class=n>0</td><td>7 · 3 · 1 · 1 · 1 · 1 · 1 · 1 · 1</td></tr><tr><td>server_long run1</td><td class=n>17</td><td class=n>0</td><td>7 · 5 · 3 · 1 · 1</td></tr><tr><td>server_long run2</td><td class=n>17</td><td class=n>0</td><td>5 · 5 · 2 · 1 · 1 · 1 · 1 · 1</td></tr><tr><td>server_long run3</td><td class=n>17</td><td class=n>0</td><td>6 · 4 · 2 · 2 · 1 · 1 · 1</td></tr><tr><td>server_long run4</td><td class=n>17</td><td class=n>0</td><td>6 · 5 · 2 · 2 · 1 · 1</td></tr><tr><td>server_long run5</td><td class=n>17</td><td class=n>0</td><td>7 · 5 · 2 · 1 · 1 · 1</td></tr></table></div>
+<h2>Method</h2>
+<ul>
+<li>Command: <code>dotnet build FSharp.Compiler.Service.slnx -c Release --no-restore --no-incremental -nodeReuse:false</code>,
+compiler, FSharp.Build and targets from a layout via <code>FSharpTargetsPath</code>, <code>FSharpPropsShim</code>,
+<code>FSharpTargetsShim</code>, <code>FSharpOverridesTargetsShim</code>.</li>
+<li>Stock and flags use <code>layouts/baseline</code> (main, ReadyToRun, SDK runtimeconfig). Flags are applied to the fsc processes only, through
+an <code>FscToolExe</code> wrapper. The server uses <code>layouts/server</code> (the same R2R build of the server branch) with
+<code>FSharpUseSharedCompilation=true</code>; workers run default JIT settings, Server GC and GCHeapCount = max(1, cores/2).</li>
+<li>CPU: rusage of the build process tree plus the CPU that live workers used during the build (ps before and after).</li>
+<li>Hardware: </li>
+</ul>
+</main></body></html>

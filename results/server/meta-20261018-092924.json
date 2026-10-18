@@ -1,0 +1,16 @@
+{
+ "argv": [
+  "scripts/serverbench.py",
+  "--configs",
+  "baseline,flags,server",
+  "--runs",
+  "2",
+  "--warmup",
+  "1"
+ ],
+ "start": "2026-10-18T09:29:24+0100",
+ "commit": "99406265c88090c50e575afe8474f0979aa6f815",
+ "server_commit": "2df01fc34ce9a2a7dc6f9c61a24f0c505a8fc172",
+ "ncpu": 11,
+ "outputs": 61
+}

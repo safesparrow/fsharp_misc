@@ -1,0 +1,29 @@
+<h2>Findings</h2>
+<h3>Correctness</h3>
+<ul>
+  <li><b>Identical to stock.</b> Across all 9 server builds (cold and warm), every compilation output matches a hash that a stock build also produced. That covers 17 assemblies with embedded PDBs, 17 XML docs and the reference assemblies. The diagnostics match too.</li>
+  <li><b>No fallbacks.</b> In every server build, workers served all 17 compilations and none fell back to a stock process. No worker retired, since this solution doesn't load type providers during compilation.</li>
+  <li><b>Stock <code>main</code> is still non-deterministic for reference assemblies under load.</b>
+    <ul>
+      <li>Three stock builds produced three different <code>refint/FSharp.Compiler.Service.dll</code> (net11.0), and one stock build produced a different <code>refint/FSharp.Core.dll</code> (net10.0). The main assemblies were identical every time.</li>
+      <li>Replaying the FCS compilation with the stock compiler: three replays one after another gave identical output. Four replays running at the same time gave two variants.</li>
+      <li>The variants differ in 36 bytes, which look like the PE timestamp, the MVID and one other 16-byte field. In a deterministic build the timestamp and MVID are derived from the signature hash (<code>SignatureHash.calculateSignatureHashOfFiles</code>, <code>fsc.fs:869</code>). So that hash still varies with thread timing, even with #19751 (<code>85e2e2189</code>, included here) fixed.</li>
+      <li>The server outputs are always one of the stock variants.</li>
+    </ul></li>
+</ul>
+<h3>Performance (whole build, 11-core M-series)</h3>
+<ul>
+  <li><b>As requested (1 warm-up + 2 runs):</b> stock 66.1 s, stock + JIT flags 45.9 s, server 48.8 s (runs of 55.2 s and 42.5 s). The server is 1.35× faster than stock and 6% slower than the flags.</li>
+  <li><b>Longer server sequence (1 warm-up + 5 runs, extra):</b> 43.4, 46.3, 53.0, 45.3 and 37.9 s, mean 45.2 s. That is 1.46× faster than stock and level with the flags (45.9 s).</li>
+  <li><b>CPU drops sharply.</b> The server uses about 265 s of CPU per build, against 491 s for stock (−46%) and 342 s for the flags (−23%). The work is no longer re-JIT'd in every process.</li>
+  <li><b>The server is noisy.</b> Warm server builds range from 37.9 to 55.2 s, while stock and flags repeat within about 1 s. The likely cause is which warm worker picks up the large compilations, which are on the critical path: the client takes the lowest free slot, so the assignment changes from build to build. The 5-heap GC configuration is another candidate. Neither has been measured yet.</li>
+  <li><b>The cold server build costs about the same as stock</b> (68.7 and 78.5 s, against 73.0 s for the stock warm-up). Up to 9 workers start and JIT the compiler from scratch.</li>
+  <li><b>Memory.</b> Up to 9 workers stay alive. Their combined RSS right after a build is 3.5–4.6 GB, measured before the idle GC compaction runs.</li>
+</ul>
+<h3>Next experiments</h3>
+<ul>
+  <li><b>Worker affinity.</b> Send a project to the worker that compiled it last time, and big compilations to the warmest worker. That should cut the variance and the warm build time.</li>
+  <li><b>Workers + JIT flags.</b> The plan keeps custom flags out of the workers. They still pay tiering cost on code they haven't run yet, so measuring the flags on workers would show how much that costs.</li>
+  <li><b>GC heap count:</b> compare 5 heaps, DATAS and 11 heaps.</li>
+  <li><b>Opt-in cache reuse</b> (IL readers for framework and NuGet references).</li>
+</ul>

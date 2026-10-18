@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>F# Compiler Server</title>
+<style>
+:root{
+  --bg:#fbfaf8; --fg:#1d1d1f; --muted:#5f6368; --line:#d9d6d0; --card:#ffffff; --code:#f2efe9;
+  --accent:#2f6fde; --accent-soft:#e3ecfc; --ok:#1f8a4c; --ok-soft:#e1f3e8; --warn:#b26a00; --warn-soft:#fbf0dc;
+  --bad:#c0392b; --bad-soft:#f9e3e0; --node:#f4f2ee; --worker:#e6f0e9; --client:#e3ecfc;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16171a; --fg:#e8e6e3; --muted:#a2a5ab; --line:#34363b; --card:#1e2024; --code:#26282d;
+    --accent:#7aa7ff; --accent-soft:#1f2b44; --ok:#5cc98a; --ok-soft:#173226; --warn:#f0b35a; --warn-soft:#3a2d16;
+    --bad:#ff8a7a; --bad-soft:#3d201c; --node:#25272c; --worker:#1b2e23; --client:#1f2b44;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16171a; --fg:#e8e6e3; --muted:#a2a5ab; --line:#34363b; --card:#1e2024; --code:#26282d;
+  --accent:#7aa7ff; --accent-soft:#1f2b44; --ok:#5cc98a; --ok-soft:#173226; --warn:#f0b35a; --warn-soft:#3a2d16;
+  --bad:#ff8a7a; --bad-soft:#3d201c; --node:#25272c; --worker:#1b2e23; --client:#1f2b44;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+.wrap{display:grid;grid-template-columns:230px minmax(0,1fr);max-width:1240px;margin:0 auto}
+nav{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:28px 16px;border-right:1px solid var(--line);font-size:13.5px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:3px 0}
+nav a:hover{color:var(--accent)}
+nav .t{font-weight:650;color:var(--fg);margin-bottom:10px}
+main{padding:28px 40px 80px;min-width:0}
+h1{font-size:28px;margin:0 0 4px}
+h2{font-size:21px;margin:44px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:24px 0 8px}
+p,li{max-width:80ch}
+.sub{color:var(--muted);margin:0 0 20px}
+code{font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code);padding:1px 5px;border-radius:4px}
+pre{font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code);padding:12px 14px;border-radius:8px;overflow:auto}
+pre code{background:none;padding:0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:16px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.card b{display:block;margin-bottom:4px}
+.card span{color:var(--muted);font-size:13.5px}
+.card code{word-break:break-all}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:var(--card)}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+th{background:var(--node);font-weight:600}
+.tw{overflow-x:auto}
+.pill{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;font-weight:600}
+.p-ok{background:var(--ok-soft);color:var(--ok)} .p-warn{background:var(--warn-soft);color:var(--warn)}
+.p-bad{background:var(--bad-soft);color:var(--bad)} .p-acc{background:var(--accent-soft);color:var(--accent)}
+figure{margin:18px 0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+figcaption{color:var(--muted);font-size:13px;margin-top:8px}
+svg{width:100%;height:auto;display:block}
+svg text{fill:var(--fg);font:12.5px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+svg .m{fill:var(--muted);font-size:11.5px}
+svg .b{font-weight:650}
+svg .node{fill:var(--node);stroke:var(--line)}
+svg .client{fill:var(--client);stroke:var(--accent)}
+svg .worker{fill:var(--worker);stroke:var(--ok)}
+svg .gone{fill:none;stroke:var(--bad);stroke-dasharray:5 4}
+svg .ln{stroke:var(--muted);stroke-width:1.4;fill:none}
+svg .acc{stroke:var(--accent);stroke-width:1.6;fill:none}
+svg .okl{stroke:var(--ok);stroke-width:1.6;fill:none}
+svg .life{stroke:var(--line);stroke-width:1.2;stroke-dasharray:4 4}
+svg .box{fill:var(--card);stroke:var(--line)}
+.callout{border-left:4px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 8px 8px 0;margin:14px 0}
+.callout.warn{border-color:var(--warn);background:var(--warn-soft)}
+@media (max-width:860px){.wrap{display:block}nav{display:none}main{padding:20px 16px 60px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav>
+  <div class="t">F# Compiler Server</div>
+  <a href="#tldr">Summary</a>
+  <a href="#today">How fsc runs today</a>
+  <a href="#arch">Architecture</a>
+  <a href="#flow">Request lifecycle</a>
+  <a href="#fidelity">Fidelity: same as stock</a>
+  <a href="#state">Process-state audit</a>
+  <a href="#tp">Type providers</a>
+  <a href="#enable">Enabling &amp; fallback</a>
+  <a href="#pool">Pool, slots, lifetime</a>
+  <a href="#protocol">Protocol</a>
+  <a href="#cli">Stop CLI</a>
+  <a href="#files">Code changes</a>
+  <a href="#test">Test &amp; benchmark plan</a>
+  <a href="#risks">Risks &amp; open items</a>
+  <a href="#later">Reliability later</a>
+</nav>
+<main>
+<h1>F# Compiler Server: plan</h1>
+<p class="sub">This is a first-party design for dotnet/fsharp. It is based on <code>main</code> @ 99406265, SDK 11.0.100-rc.1, and Apple M-series hardware (11 cores, 18 GB). The report stays local and has not been published. Written 2026-10-18.</p>
+
+<h2 id="tldr">Summary</h2>
+<div class="cards">
+  <div class="card"><b>Two components, no broker</b><span>An in-process client inside the existing <code>Fsc</code> MSBuild task talks to a pool of long-lived worker processes. There is no thin-client process and no broker process.</span></div>
+  <div class="card"><b>Workers are fsc.dll</b><span><code>dotnet fsc.dll --compiler-server-worker …</code> is a hidden mode of the shipped compiler. Workers use the same assembly, runtimeconfig and ReadyToRun code as stock fsc, with no new binary and no SDK layout change.</span></div>
+  <div class="card"><b>Same entry point as stock</b><span>The worker runs the same function as <code>fscmain.fs</code>: <code>CompileFromCommandLineArguments</code> with <code>ReduceMemoryFlag.No</code>, the same argv and response file, and its own exiter.</span></div>
+  <div class="card"><b>A fresh process, simulated</b><span>Before each compilation the worker resets counters, the file-index table, caches and option globals. It runs each compilation on a fresh thread with captured console output. There is no cache reuse by default.</span></div>
+  <div class="card"><b>Opt-in</b><span>Enabled with <code>FSharpUseSharedCompilation=true</code>. <code>UseSharedCompilation=false</code> vetoes it. If anything goes wrong, the task falls back to the stock process path.</span></div>
+  <div class="card"><b>Type providers retire workers</b><span>The worker sets an explicit flag where a type-provider or compiler-tool assembly is loaded, with an assembly-load watch as a backstop. A worker that loaded one answers, then exits.</span></div>
+</div>
+
+<h2 id="today">How fsc runs today</h2>
+<p>On <code>main</code>, <code>Fsc</code> is a <code>ToolTask</code> marked <code>[MSBuildMultiThreadableTask]</code> (#20506). That attribute only lets the <em>task</em> run on a thread inside a multi-threaded MSBuild node, using <code>TaskEnvironment</code> for the working directory and environment. <code>Fsc.ExecuteTool</code> still calls <code>ToolTask.ExecuteTool</code>, which starts <code>dotnet fsc.dll @rsp</code> once per project (<code>Fsc.fs:758</code>). Every compilation therefore pays runtime startup, assembly loading and JIT. Phase 1 measured that JIT is the main reason the JIT flags help.</p>
+
+<figure>
+<svg viewBox="0 0 980 210" role="img" aria-label="Today: each project spawns a new fsc process">
+  <rect class="node" x="20" y="40" width="210" height="130" rx="10"/>
+  <text x="36" y="64" class="b">MSBuild node(s)</text>
+  <rect class="box" x="36" y="80" width="178" height="34" rx="6"/><text x="48" y="101">Fsc task (ToolTask)</text>
+  <text x="36" y="140" class="m">writes rsp, spawns process,</text><text x="36" y="156" class="m">parses stdout/stderr lines</text>
+  <g class="ln"><path d="M230 97 H330"/><path d="M322 92 l8 5 -8 5"/></g>
+  <text x="246" y="88" class="m">spawn ×N projects</text>
+  <g>
+    <rect class="box" x="340" y="22" width="300" height="44" rx="8"/><text x="354" y="42">dotnet fsc.dll @proj1.rsp</text><text x="354" y="58" class="m">startup · load · JIT · compile · exit</text>
+    <rect class="box" x="340" y="76" width="300" height="44" rx="8"/><text x="354" y="96">dotnet fsc.dll @proj2.rsp</text><text x="354" y="112" class="m">startup · load · JIT · compile · exit</text>
+    <rect class="box" x="340" y="130" width="300" height="44" rx="8"/><text x="354" y="150">dotnet fsc.dll @projN.rsp</text><text x="354" y="166" class="m">startup · load · JIT · compile · exit</text>
+  </g>
+  <text x="670" y="70" class="b">Cost repeated for every project</text>
+  <text x="670" y="92" class="m">• runtime startup + assembly load</text>
+  <text x="670" y="110" class="m">• Tier-0 JIT, then re-JIT of hot code</text>
+  <text x="670" y="128" class="m">• cold caches (R2R helps but doesn't cover</text>
+  <text x="670" y="144" class="m">  generics or FSharp.Core instantiations)</text>
+</svg>
+<figcaption>Today's model: one short-lived compiler process per project and target framework.</figcaption>
+</figure>
+
+<h2 id="arch">Architecture</h2>
+<figure>
+<svg viewBox="0 0 980 380" role="img" aria-label="Proposed architecture">
+  <text x="20" y="22" class="m">Third-party solution (for comparison):</text>
+  <rect class="node" x="20" y="32" width="120" height="34" rx="6"/><text x="34" y="53">MSBuild</text>
+  <rect class="gone" x="180" y="32" width="120" height="34" rx="6"/><text x="194" y="53">thin client</text>
+  <rect class="gone" x="340" y="32" width="120" height="34" rx="6"/><text x="364" y="53">broker</text>
+  <rect class="worker" x="500" y="32" width="120" height="34" rx="6"/><text x="524" y="53">workers</text>
+  <g class="ln"><path d="M140 49H178"/><path d="M300 49H338"/><path d="M460 49H498"/></g>
+  <text x="640" y="53" class="m">the two dashed hops (two extra processes) are removed</text>
+
+  <rect class="node" x="20" y="100" width="300" height="250" rx="12"/>
+  <text x="36" y="124" class="b">MSBuild node (per -m / -mt thread)</text>
+  <rect class="client" x="36" y="140" width="268" height="190" rx="8"/>
+  <text x="50" y="162" class="b">Fsc task: ExecuteTool override</text>
+  <text x="50" y="184" class="m">1  GetProcessStartInfo → cwd, env (TaskEnvironment)</text>
+  <text x="50" y="204" class="m">2  write rsp exactly like ToolTask</text>
+  <text x="50" y="224" class="m">3  pool key → lock a free slot</text>
+  <text x="50" y="244" class="m">4  connect (spawn the worker if absent)</text>
+  <text x="50" y="264" class="m">5  JSONL request → JSONL response</text>
+  <text x="50" y="284" class="m">6  LogEventsFromTextOutput per line</text>
+  <text x="50" y="304" class="m">7  return the exit code (or fall back to stock)</text>
+
+  <rect class="box" x="370" y="120" width="210" height="210" rx="10"/>
+  <text x="386" y="144" class="b">Per-user server dir</text>
+  <text x="386" y="164" class="m">$TMP/fsharp-server-&lt;user&gt;/&lt;key&gt;/</text>
+  <rect class="box" x="386" y="178" width="178" height="26" rx="5"/><text x="396" y="196">slot-0.lock   ⇄ pipe fsc-&lt;key&gt;-0</text>
+  <rect class="box" x="386" y="210" width="178" height="26" rx="5"/><text x="396" y="228">slot-1.lock   ⇄ pipe fsc-&lt;key&gt;-1</text>
+  <rect class="box" x="386" y="242" width="178" height="26" rx="5"/><text x="396" y="260">…  up to ProcessorCount</text>
+  <text x="386" y="292" class="m">exclusive file lock = this client</text>
+  <text x="386" y="308" class="m">owns this worker right now</text>
+
+  <g class="acc"><path d="M304 235 H368"/><path d="M360 230 l8 5 -8 5"/></g>
+  <g class="okl"><path d="M580 191 H648"/><path d="M640 186 l8 5 -8 5"/><path d="M580 223 H648"/><path d="M640 218 l8 5 -8 5"/></g>
+
+  <rect class="worker" x="650" y="100" width="310" height="250" rx="12"/>
+  <text x="666" y="124" class="b">Worker pool (fsc.dll, worker mode)</text>
+  <rect class="box" x="666" y="140" width="278" height="62" rx="8"/>
+  <text x="678" y="160">worker 0 (Server GC, GCHeapCount = 5)</text>
+  <text x="678" y="178" class="m">one compilation at a time; fresh thread,</text>
+  <text x="678" y="194" class="m">reset process state, captured console</text>
+  <rect class="box" x="666" y="210" width="278" height="40" rx="8"/><text x="678" y="235">worker 1 …</text>
+  <text x="666" y="276" class="m">spawned on demand by the client that owns the slot</text>
+  <text x="666" y="294" class="m">exits: idle 10 min · type provider loaded · shutdown CLI</text>
+  <text x="666" y="312" class="m">GC after each response (off the critical path)</text>
+  <text x="666" y="330" class="m">pool key = fsc.dll identity + host + user + culture env</text>
+</svg>
+<figcaption>Proposed topology. The client lives in the Fsc task already loaded in every MSBuild node. Slot lock files replace the broker: the OS arbitrates which client talks to which worker, and the kernel releases the lock if a client dies.</figcaption>
+</figure>
+
+<h3>Why this shape</h3>
+<ul>
+  <li><b>No extra client process.</b> The <code>Fsc</code> task is already loaded and JIT-warm in MSBuild nodes, and FSharp.Build.dll is the library call. An AOT thin client would get the child-process environment for free, but it would mean shipping a native binary per platform from dotnet/fsharp. We can get the exact same inputs in-process by calling <code>ToolTask.GetProcessStartInfo</code>, which is protected virtual. That call returns the exact working directory and environment the stock child would receive, including in <code>-mt</code> mode.</li>
+  <li><b>No broker.</b> A broker exists to pick an idle worker and to start and stop workers. Per-slot exclusive file locks do the first. The slot owner starting its own worker does the second. Locks are released by the kernel when a process dies, so a crashed client can't wedge the pool.</li>
+  <li><b>Worker = fsc.dll.</b> This keeps everything that already ships with the compiler: Server GC runtimeconfig, R2R images, deps.json, FSharp.Core binding, and the reference resolver. The SDK's <code>FSharp/</code> folder gains no files. The Fsc task already knows the host (<code>DOTNET_HOST_PATH</code>) and <code>DotnetFscCompilerPath</code>.</li>
+  <li><b>Processes, not threads.</b> The working directory, <code>Console</code>, environment variables and many compiler statics are process-wide. One compilation per process keeps fidelity simple. Compiling inside MSBuild nodes was rejected for the same reasons, and also because a compiler crash would take down the node and type providers would load into MSBuild.</li>
+</ul>
+
+<h2 id="flow">Request lifecycle</h2>
+<figure>
+<svg viewBox="0 0 1000 560" role="img" aria-label="Sequence diagram">
+  <text x="70" y="24" class="b">Fsc task (client)</text><text x="380" y="24" class="b">slot-i.lock / pipe</text><text x="700" y="24" class="b">worker i (fsc.dll)</text>
+  <path class="life" d="M120 34V545"/><path class="life" d="M440 34V545"/><path class="life" d="M760 34V545"/>
+  <rect class="client" x="10" y="44" width="230" height="54" rx="6"/>
+  <text x="30" y="64">GetProcessStartInfo(…)</text><text x="30" y="82" class="m">cwd + env as the child would get</text>
+  <rect class="client" x="10" y="106" width="230" height="40" rx="6"/><text x="30" y="131">write @rsp (UTF-8 BOM, as ToolTask)</text>
+  <g class="acc"><path d="M120 170H432"/><path d="M424 165l8 5-8 5"/></g><text x="150" y="163" class="m">open slot-i.lock FileShare.None (try 0..N-1)</text>
+  <g class="acc"><path d="M120 206H752"/><path d="M744 201l8 5-8 5"/></g><text x="150" y="199" class="m">connect pipe fsc-&lt;key&gt;-i   (refused → spawn worker i, then retry)</text>
+  <g class="acc"><path d="M120 242H752"/><path d="M744 237l8 5-8 5"/></g><text x="150" y="235" class="m">{"v":1,"type":"compile","cwd":"…","args":["@/tmp/x.rsp"]}</text>
+  <rect class="worker" x="775" y="256" width="220" height="196" rx="6"/>
+  <text x="787" y="276" class="b">per compilation</text>
+  <text x="787" y="296" class="m">RestoreProcessState(snapshot)</text>
+  <text x="787" y="314" class="m">SetCurrentDirectory(cwd)</text>
+  <text x="787" y="332" class="m">Console.SetOut/SetError → capture</text>
+  <text x="787" y="350" class="m">new Thread(16 MB) "F# Main Thread"</text>
+  <text x="787" y="368" class="m">  CompileFromCommandLineArguments</text>
+  <text x="787" y="386" class="m">  exiter = throw WorkerExit n</text>
+  <text x="787" y="404" class="m">--times → STATS line at end</text>
+  <text x="787" y="422" class="m">TP / external load? → retire</text>
+  <text x="787" y="440" class="m">restore Console</text>
+  <g class="okl"><path d="M760 470H128"/><path d="M136 465l-8 5 8 5"/></g><text x="200" y="463" class="m">{"exitCode":0,"lines":[[0,"…"],[1,"…"]],"retire":false,"pid":…}</text>
+  <rect class="client" x="10" y="482" width="230" height="54" rx="6"/><text x="30" y="502">LogEventsFromTextOutput(line,</text><text x="30" y="520" class="m">stdout/stderr importance) → ExitCode</text>
+  <rect class="worker" x="775" y="482" width="220" height="54" rx="6"/><text x="787" y="502">GC.Collect (compacting)</text><text x="787" y="520" class="m">then accept the next request</text>
+  <text x="260" y="530" class="m">slot lock released when the task returns (or the client dies)</text>
+</svg>
+<figcaption>One connection per compilation: a single request line, then a single response line. The client buffers output and logs it only after a complete response arrives. If the connection fails, nothing has been logged yet, so the stock fallback can't double-log diagnostics.</figcaption>
+</figure>
+
+<h2 id="fidelity">Fidelity: the worker must look like a fresh <code>dotnet fsc.dll @rsp</code></h2>
+<div class="tw"><table>
+<tr><th>Input / effect</th><th>Stock process gets it from</th><th>Server path</th></tr>
+<tr><td>argv / response file</td><td>ToolTask writes a temp <code>.rsp</code> (<code>ResponseFileEncoding</code> = UTF-8 with BOM, <code>ResponseFileEscape</code>), and argv = <code>@"path"</code></td><td>Same code path in the override, using the protected virtuals. The worker gets argv <code>[| "fsc.exe"; "@path" |]</code>, the same as <code>fscmain</code>.</td></tr>
+<tr><td>Working directory</td><td><code>ProcessStartInfo.WorkingDirectory</code> (from <code>TaskEnvironment</code>) or else the node's cwd</td><td>Taken from <code>GetProcessStartInfo</code>. The worker calls <code>Directory.SetCurrentDirectory</code>.</td></tr>
+<tr><td>Culture</td><td>On Unix the runtime derives it at startup from <code>LANG/LC_ALL/LC_MESSAGES</code>; on Windows from the user profile. The compiler then applies <code>--preferreduilang</code> and the code-page rule (<code>fsc.fs:451</code>) on its main thread.</td><td><b>Identical by construction.</b> The culture env vars are part of the pool key, and the worker is started with the env the child would have. So its process default culture equals the child's. Each compilation runs on a new thread, so the compiler's own culture logic runs unchanged and nothing leaks between compilations.</td></tr>
+<tr><td>Console encoding</td><td>Redirected std handles</td><td>Workers also run with redirected std handles. Text goes over the pipe as strings. On Unix, stock is UTF-8 end to end, so the text is the same. Windows without <code>--utf8output</code> is a known item, listed under risks.</td></tr>
+<tr><td>stdout / stderr</td><td>ToolTask reads lines and calls <code>LogEventsFromTextOutput</code> with stdout/stderr importance</td><td><code>Console.SetOut/SetError</code> capture, ordered at line granularity. The client calls the same method with the same importances. Line splitting matches <code>Process</code>: <code>\r</code>, <code>\n</code> and <code>\r\n</code>.</td></tr>
+<tr><td>Exit code</td><td><code>QuitProcessExiter</code> → <code>Environment.Exit n</code>; the catch-all in <code>main</code> → 1</td><td><code>fscmain</code>'s body moves into a shared function that both paths call. The worker passes an exiter that throws, and the catch-all stays the same.</td></tr>
+<tr><td><code>--times</code> STATS line</td><td>A <code>ProcessExit</code> handler prints <code>STATS: …</code> to stdout</td><td>The ILBinaryReader stats are reset per compilation, and the same line is printed into the captured stdout at the end. This repo's build passes <code>--times</code> to every compilation, so it matters here.</td></tr>
+<tr><td>Thread</td><td>Main thread ("F# Main Thread", 8 MB stack on macOS/Linux)</td><td>A new thread with the same name and a 16 MB stack, so it is never smaller than stock. <code>StackGuard</code> works on depth counts, so the output doesn't depend on stack size.</td></tr>
+<tr><td>Runtime knobs (<code>DOTNET_*</code>)</td><td>The process env, including <code>FscEnvironmentVariables</code> on the jit_flags branch</td><td>Ignored, as agreed. Workers always run Server GC with <code>GCHeapCount = max(1, cpus/2)</code>, which is 5 here, and drop the JIT flags.</td></tr>
+<tr><td>Env vars the compiler reads once</td><td>The process env</td><td><code>FSharp_*</code>, <code>FSHARP_*</code> and <code>FCS_*</code> values are part of the pool key, so a worker never uses stale values. Other variables are ignored for now, as agreed.</td></tr>
+</table></div>
+
+<h2 id="state">Process-state audit: what a second compilation would otherwise inherit</h2>
+<p>I searched <code>src/Compiler</code> for module-level mutable state and caches. The worker captures a snapshot after startup and restores it before every compilation (<code>CaptureProcessState</code> / <code>RestoreProcessState</code> in <code>fsc.fs</code>). Each module gets a small internal reset helper.</p>
+<div class="tw"><table>
+<tr><th>State</th><th>Where</th><th>Why it matters</th><th>Action</th></tr>
+<tr><td><code>uniqueCount</code> (<code>newUnique</code>)</td><td>CompilerGlobalState.fs:137</td><td><span class="pill p-bad">output bytes</span> ReflectedDefinitions resource name = <code>…-&lt;newUnique()&gt;-…</code> (CreateILModule.fs:371). It also feeds local names (<code>activePatternResult&lt;n&gt;</code>, PatternMatchCompilation.fs:1455) that reach PDBs.</td><td>restore</td></tr>
+<tr><td><code>stampCount</code> (<code>newStamp</code>)</td><td>CompilerGlobalState.fs:142</td><td><span class="pill p-warn">diagnostics</span> Unnamed type variables display as <code>?&lt;stamp&gt;</code> (TypedTree.fs:2551). Ordering is by relative stamp.</td><td>restore</td></tr>
+<tr><td><code>bindId</code></td><td>CheckRecordSyntaxHelpers.fs:177</td><td><span class="pill p-bad">output names</span> Synthesized identifiers <code>…-&lt;n&gt;</code></td><td>restore</td></tr>
+<tr><td>File index table</td><td>range.fs:251</td><td><span class="pill p-bad">output order</span> IlxGen sorts type definitions by <code>(FileIndex, line, col)</code> (IlxGen.fs:2227). Files seen in an earlier compilation keep their old, smaller indexes. FSharp.Core's three TFMs share sources, and so do FSharp.Build and FCS, so the order would change. A long-lived process would also eventually wrap past <code>maxFileIndex</code>.</td><td>truncate to snapshot</td></tr>
+<tr><td>IL module reader caches + interned attrs/typerefs</td><td>ilread.fs:5088-5167</td><td><span class="pill p-warn">staleness</span> Keyed by path + mtime. Files replaced with an old mtime (NuGet zip timestamps, <code>File.Copy</code>) would give stale metadata.</td><td>clear (opt-in reuse later)</td></tr>
+<tr><td>Namespace memo tables</td><td>il.fs:67-102</td><td>Pure string splitting, so harmless, but it is still a cache</td><td>clear</td></tr>
+<tr><td>ILBinaryReader stats</td><td>ilread.fs</td><td><span class="pill p-warn">stdout</span> STATS line counts</td><td>reset</td></tr>
+<tr><td>Option globals: <code>enableConsoleColoring</code>, <code>showParserStackOnParseError</code>, <code>showTermFileCount</code>, <code>progress</code>, <code>tracking</code>, <code>DebugPrint.layout*</code>, <code>Parsing.Flags.debug</code></td><td>CompilerOptions.fs etc.</td><td><span class="pill p-warn">behaviour</span> Set by switches such as <code>--consolecolors-</code> and debug flags. They would stick for the following compilations.</td><td>restore defaults</td></tr>
+<tr><td><code>global_g</code></td><td>TcGlobals.fs:2002</td><td>Debug aid; holds the previous TcGlobals alive</td><td>reset</td></tr>
+<tr><td><code>Console.OutputEncoding</code>, culture</td><td>fsc.fs:524, fsc.fs:451</td><td>The compiler restores the encoding itself; culture is thread-local</td><td>fresh thread</td></tr>
+<tr><td>AssemblyResolve / Resolving handlers, design-time assemblies</td><td>DependencyManager, CompilerLocation.fs:183</td><td>Process-wide, can't be undone</td><td>retire worker</td></tr>
+</table></div>
+<div class="callout warn"><b>Snapshot rather than zero.</b> Counters and the file table go back to the value captured just before the first compilation, which is the same point a fresh fsc process starts from. Values consumed by lazy statics during compilation 1 are not consumed again in compilation N. That can shift later stamps, but it can't create collisions with long-lived objects, because those were created before the snapshot. The byte-for-byte tests below are the check that nothing else leaks.</div>
+
+<h2 id="tp">Type providers and compiler extensions</h2>
+<ul>
+  <li><b>Explicit hooks.</b> A process-wide flag is set wherever the compiler loads third-party code into its own process:
+    <ul>
+      <li><code>getTypeProviderAssembly</code> → <code>Assembly.UnsafeLoadFrom</code> (CompilerLocation.fs:183), for type-provider design-time assemblies</li>
+      <li><code>DependencyProvider</code> → <code>Assembly.LoadFrom</code> (DependencyProvider.fs:518), for <code>--compilertool</code> and dependency managers</li>
+      <li>the AssemblyResolve / native resolve handler installation</li>
+    </ul></li>
+  <li><b>Backstop.</b> The worker subscribes to <code>AppDomain.AssemblyLoad</code>. Any load from outside the compiler directory or the shared framework directory marks the worker for retirement, which catches future extension points nobody has hooked yet. This is the third-party heuristic, kept only as a safety net.</li>
+  <li><b>Retirement.</b> The worker stops listening before it replies, sends <code>"retire":true</code> with its pid, and exits. The client waits for that pid to exit before it releases the slot. That ensures nothing holds the provider DLL open on Windows when the next build step copies it.</li>
+  <li>The cost is one worker restart per project that uses type providers. Every other compilation in the build still uses a warm worker.</li>
+</ul>
+
+<h2 id="enable">Enabling and fallback</h2>
+<pre><code>&lt;!-- Microsoft.FSharp.Targets --&gt;
+&lt;_FSharpUseSharedCompilation Condition="'$(FSharpUseSharedCompilation)' == 'true' and '$(UseSharedCompilation)' != 'false'"&gt;true&lt;/_FSharpUseSharedCompilation&gt;
+&lt;Fsc … UseSharedCompilation="$(_FSharpUseSharedCompilation)" /&gt;</code></pre>
+<p>The SDK sets <code>UseSharedCompilation=true</code> by default (Microsoft.NET.Sdk.targets:1172 and Microsoft.Managed.Core.targets:57). Reusing that property would turn the F# server on for everyone. So the opt-in is a new property, and the existing one can only veto.</p>
+<p><b>The server path is skipped</b> (stock behaviour) when any of these hold:</p>
+<ul>
+  <li>a <code>HostObject</code> is set (VS in-process compile)</li>
+  <li><code>DotnetFscCompilerPath</code> is empty (.NET Framework <code>fsc.exe</code>)</li>
+  <li>MSBuild runs on .NET Framework</li>
+  <li><code>--pause</code> is used</li>
+  <li><code>SkipCompilerExecution</code> is set</li>
+</ul>
+<p><b>The task falls back to stock</b> when:</p>
+<ul>
+  <li>no slot is free</li>
+  <li>connecting or spawning fails or times out</li>
+  <li>the connection drops before a response arrives (for example, a worker crash or stack overflow)</li>
+</ul>
+<p><b>Cancellation</b> (Ctrl+C) kills the worker the task is talking to, so a cancelled compilation can't keep writing outputs that race with the next build. A new worker is started on demand.</p>
+
+<h2 id="pool">Pool, slots and lifetime</h2>
+<div class="tw"><table>
+<tr><th>Aspect</th><th>Decision</th></tr>
+<tr><td>Pool key</td><td>SHA-256 (first 16 hex chars) of: fsc.dll full path, size and mtime; host path; user name; <code>LANG</code>/<code>LC_ALL</code>/<code>LC_MESSAGES</code>/<code>DOTNET_SYSTEM_GLOBALIZATION_*</code>; <code>FSharp_*</code>/<code>FSHARP_*</code>/<code>FCS_*</code>; protocol version; heap count. A rebuilt compiler or a different locale gets a separate pool, so stale workers are never reused.</td></tr>
+<tr><td>Slots</td><td><code>slot-0..N-1.lock</code> with N = <code>ProcessorCount</code>. The client tries them in order, so low slots, which are warm, get reused first. In <code>-mt</code> mode concurrency isn't capped by the node count, so N is set by CPUs, not nodes.</td></tr>
+<tr><td>Pipes</td><td><code>fsc-&lt;key&gt;-&lt;slot&gt;</code>, with <code>PipeOptions.CurrentUserOnly</code> on both ends. The short name stays under the 104-byte Unix socket path limit on macOS.</td></tr>
+<tr><td>Spawn</td><td>The slot owner starts <code>dotnet fsc.dll --compiler-server-worker &lt;key&gt; &lt;slot&gt; &lt;dir&gt;</code> with the child env from <code>GetProcessStartInfo</code>, minus the JIT flags, plus <code>DOTNET_gcServer=1</code> and <code>DOTNET_GCHeapCount</code>. Std handles are redirected and closed, so the worker never holds MSBuild's output pipes open.</td></tr>
+<tr><td>Idle exit</td><td>10 min. Before exiting, the worker takes its own slot lock, so it can't race a client that's connecting.</td></tr>
+<tr><td>Memory</td><td>A compacting GC runs after each response, off the critical path. With a fixed heap count, DATAS is off.</td></tr>
+</table></div>
+
+<h2 id="protocol">Protocol</h2>
+<p>JSONL over a named pipe (a Unix domain socket on macOS and Linux): one request line, then one response line per connection, written with System.Text.Json's <code>Utf8JsonWriter</code> and <code>Utf8JsonReader</code>. The STJ source generator only works with C#, and both ends are F#. Hand-written reader and writer code for two small message types is a few dozen lines with no reflection, so startup cost is low. FSharp.Build (netstandard2.0) references STJ <em>compile-only</em> (<code>ExcludeAssets="runtime"</code>). The server path only runs on .NET Core MSBuild, where STJ is part of the shared framework, so no new DLL ships.</p>
+<pre><code>→ {"v":1,"type":"compile","cwd":"/src/proj","args":["@/tmp/MSBuildTemp/tmp1a2b.rsp"]}
+← {"v":1,"exitCode":0,"retire":false,"pid":48211,"lines":[[1,"warning FS3370: …"],[0,"STATS: #ByteArrayFile = …"]]}
+→ {"v":1,"type":"shutdown"}</code></pre>
+
+<h2 id="cli">Stop CLI</h2>
+<ul>
+  <li><code>dotnet &lt;sdk&gt;/FSharp/fsc.dll --compiler-server-shutdown</code> visits every pool dir of the current user. For each slot it takes the lock, waiting for any running compilation to finish, then sends <code>shutdown</code>. Workers that don't respond are killed using the pid file the worker writes.</li>
+  <li>It uses the same DLL as the worker and the client protocol code, so there's nothing extra to install. This works now by full path.</li>
+  <li>The natural home later is <code>dotnet build-server shutdown</code>, which already stops MSBuild nodes, VBCSCompiler and Razor. That needs a small dotnet/sdk change to call the command above.</li>
+</ul>
+
+<h2 id="files">Code changes (dotnet/fsharp branch <code>compiler_server</code>)</h2>
+<div class="tw"><table>
+<tr><th>File</th><th>Change</th></tr>
+<tr><td><code>src/FSharp.Build/CompilerServerProtocol.fs</code> (new, also linked into fsc)</td><td>Pool key, paths, pipe names, JSONL request/response, and a <code>LangVersion 9</code>-safe subset</td></tr>
+<tr><td><code>src/FSharp.Build/Fsc.fs</code></td><td><code>UseSharedCompilation</code> parameter; the server branch of <code>ExecuteTool</code>; fallback; <code>Cancel</code></td></tr>
+<tr><td><code>src/FSharp.Build/Microsoft.FSharp.Targets</code>, <code>FSharp.Build.fsproj</code></td><td>Opt-in property; compile-only STJ reference</td></tr>
+<tr><td><code>src/fsc/fscmain.fs</code>, <code>src/fsc/CompilerServer.fs</code> (new)</td><td>The shared <code>runCompilation</code>; the worker loop; the shutdown CLI</td></tr>
+<tr><td><code>src/Compiler/Driver/fsc.fs(i)</code></td><td><code>CaptureProcessState</code> / <code>RestoreProcessState</code>, and the extension-load flag</td></tr>
+<tr><td>Small internal reset helpers</td><td>CompilerGlobalState.fs, range.fs, CheckRecordSyntaxHelpers.fs, ilread.fs (stats), il.fs, CompilerLocation.fs / DependencyProvider.fs (load flag)</td></tr>
+</table></div>
+<p>The SDK side needs nothing: a new FSharp.Build plus fsc.dll ship in <code>sdk/&lt;v&gt;/FSharp/</code> as usual.</p>
+
+<h2 id="test">Test and benchmark plan</h2>
+<h3>Correctness: byte-identical to stock</h3>
+<ol>
+  <li>Build <code>FSharp.Compiler.Service.slnx</code> (17 compilations: FSharp.Core ×3 TFMs, FCS ×2, …) with the <b>stock</b> R2R layout of <code>main</code>. Snapshot every <code>obj/**/*.dll|pdb|xml</code> and <code>refint</code> assembly, and keep the MSBuild warnings and messages.</li>
+  <li>Rebuild with the <b>server</b> layout and <code>FSharpUseSharedCompilation=true</code>, cold and then warm with workers reused. Compare every output byte for byte, plus the diagnostics text in order.</li>
+  <li>Stress reuse ordering: force a single worker (<code>FSharpCompilerServerMaxWorkers=1</code>, a test knob) so each worker compiles many projects in sequence. Run with <code>-m:1</code> and a reversed project order.</li>
+  <li>Spot checks: a compilation with errors (exit code and messages), <code>--consolecolors-</code>, a type-provider project (worker retires), a non-English <code>LANG</code>, and killing a worker mid-compilation (fallback).</li>
+</ol>
+<h3>Performance: whole <code>dotnet build</code> of the slnx</h3>
+<div class="tw"><table>
+<tr><th>Config</th><th>Compiler</th><th>Notes</th></tr>
+<tr><td>baseline</td><td>stock <code>main</code> R2R layout</td><td>one process per project</td></tr>
+<tr><td>baseline + JIT flags</td><td>same</td><td><code>DOTNET_TieredPGO=0</code> and <code>DOTNET_TC_CallCountingDelayMs=0</code> on fsc processes only</td></tr>
+<tr><td>server</td><td><code>compiler_server</code> R2R layout</td><td>workers: default JIT settings, Server GC, GCHeapCount = 5</td></tr>
+</table></div>
+<p>For each config: one warm-up build, then two measured builds, as requested. Each run is <code>dotnet build -c Release --no-restore --no-incremental</code> with MSBuild node reuse off, so the only state that survives between builds is the server's workers. F# workers are stopped between configs. I'll report wall and CPU time per build, plus the server's cold first build separately, since it includes worker startup and JIT. Two runs on a desktop machine with roughly 3–5% noise can only show large effects.</p>
+
+<h2 id="risks">Risks and open items</h2>
+<ul>
+  <li><b>Hidden statics.</b> The audit is a grep, so something it missed could still leak between compilations. The byte-identical tests over 17 compilations in several orders are the check; anything they find goes into <code>RestoreProcessState</code>.</li>
+  <li><b>Windows console encoding.</b> Without <code>--utf8output</code>, stock output passes through the OEM code page, which can turn characters into <code>?</code>. The server sends exact strings. To be identical, the worker would have to round-trip text through <code>Console.OutputEncoding</code>. That's planned, but untested on this Mac.</li>
+  <li><b>Memory.</b> Up to 11 idle workers each hold a Server-GC heap. Mitigations: the compacting GC, an idle timeout, and possibly a lower N later.</li>
+  <li><b>Static state that depends on the working directory or env</b> (for example <code>BinFolderOfDefaultFSharpCompiler</code>) is computed from the compiler location, which is the same for every request. Other environment variables are ignored, as agreed.</li>
+</ul>
+
+<h2 id="later">Reliability later (designed for, not built now)</h2>
+<ul>
+  <li>Health and version handshake; a worker log file; structured telemetry of fallbacks.</li>
+  <li>Memory caps and recycling after K compilations or M GB.</li>
+  <li>Opt-in cache reuse (IL readers for immutable framework and NuGet references) for extra speed, as a separate measured experiment.</li>
+  <li><code>dotnet build-server shutdown</code> integration; multi-user <code>/tmp</code> hardening on Linux.</li>
+</ul>
+</main>
+</div>
+</body>
+</html>

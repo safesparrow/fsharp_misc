@@ -246,3 +246,13 @@ files {"data/report-data.js": "reports/phase3/data/report-data.js"}.
 - Short report: scripts/report_pr.py -> reports/pr (HTML: left nav, collapsible sections; MD: absolute links/images
   to https://safesparrow.github.io/fsharp_misc/reports/...). Scope: .NET 11, parallel on, newest TFM per project (14).
 - Repo is public; GitHub Pages serves main root. Commits use the noreply email (repo-local git config).
+
+## Compiler server (user request 2026-10-18, server.md)
+- Code: `repos/server` (clone of baseline @ 99406265), branch `compiler_server`, local commits only. In-proc client in the Fsc task
+  -> slot lock files + named pipe (JSONL) -> `dotnet fsc.dll --compiler-server-worker` workers, one compilation each at a time.
+  Opt-in `FSharpUseSharedCompilation=true`. Stop: `dotnet layouts/server/fsc.dll --compiler-server-shutdown`.
+- Layout: `./build.sh -c Release` in repos/server, then `scripts/make_layout.py repos/server layouts/server`.
+- Bench: `scripts/serverbench.py` (configs baseline/flags/server/server_long), `scripts/report_server.py`.
+  Reports (local only, user asked not to publish): `reports/server/plan.html`, `reports/server/results.html`.
+- Result 2026-10-18: all server outputs match stock; warm server ~45-49 s vs stock 66 s vs flags 46 s; CPU -46% vs stock.
+  Stock main still produces non-deterministic ref assemblies under contention (signature-hash-derived MVID/timestamp).
