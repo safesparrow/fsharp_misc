@@ -90,13 +90,12 @@ main{max-width:1240px;margin:0 auto} a{color:var(--accent)}</style></head><body>
       <li>Skipping the idle-time GC: no effect.</li>
     </ul></li>
   <li><b>Outputs:</b> every server compilation and build produced the same assemblies as stock (main and reference assemblies, compared by hash).</li>
-  <li><b>Open issue: occasional slow builds.</b>
+  <li><b>Occasional slow builds: explained as MSBuild scheduling.</b>
     <ul>
-      <li>3 of about 30 warm FCS-solution server builds took 53–55 s instead of about 37–45 s, with normal or low CPU. No worker restarted and no compilation fell back to a stock process.</li>
-      <li>With the new defaults, that's 1 slow build out of 16.</li>
-      <li>Two repeats showed no outlier. The 8 builds of the second repeat were instrumented: the client adds at most 0.09 s per compilation beyond the worker's compile time.</li>
-      <li>The 9 stock + flags builds varied by only about 1 s.</li>
-      <li>Not explained yet. The next slow build will show where the time goes; the logging for that is in place.</li>
+      <li>About 4 of 40 warm FCS-solution server builds took 53–55 s instead of about 37–45 s; none of the 12 stock / stock + flags builds did.</li>
+      <li>The per-compilation timing now in the build log caught one. FCS's two target frameworks were built one after the other on the same MSBuild node: the netstandard2.0 compilation started 23 s after net11.0, instead of together. Everything that depends on FCS then waited.</li>
+      <li>The compilations themselves were faster than usual (11.9 and 11.3 s, against about 15.5 s when they overlap), and the client added at most 0.05 s per compilation.</li>
+      <li>Whether the server makes this ordering more likely is not established.</li>
     </ul></li>
 </ul>
 
@@ -137,9 +136,8 @@ the unexplained slow builds (55.3 s); the repeat's first build started with 2.5 
 
 <h2>Not done yet, worth trying next</h2>
 <ul>
-<li><b>Find the occasional slow build</b>: the Fsc task now logs client and worker time per compilation and every binlog has its own
-name, so the next slow build will show where the time went. In 8 instrumented builds none was slow, and the client's overhead per
-compilation (client time minus worker compilation time) was at most 0.09 s.</li>
+<li><b>Slow-build ordering</b>: the occasional slow builds come from MSBuild running FCS's two target frameworks one after the other.
+Next: more stock builds to see whether it happens there too at a lower rate, and whether <code>-graph</code> builds avoid it.</li>
 <li><b>Pre-warm new workers</b>: start one spare worker ahead of need, or let a new worker compile a small embedded sample before its
 first request. Fast tier-up already removed most of the cold cost, so this is worth it only if cold builds still matter.</li>
 <li><b>Allocation profile of FCS</b> (33 GB per compilation): the largest remaining cost for big projects, with or without the server.</li>

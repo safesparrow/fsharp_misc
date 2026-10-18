@@ -146,7 +146,8 @@ def main():
         ("flags", "stock + JIT flags", None), ("server", "server, default workers (affinity on)", None),
         ("server_nonconc", "+ non-concurrent GC", None), ("server_ccd0_nonconc", "+ CallCountingDelayMs=0 (new default)", None),
         ("server_ccd0_nonconc_datas", "new default + DATAS", None), ("server_ccd0_nonconc_heapsall", "new default + 11 heaps", None),
-        ("server", "new default, repeat (8 builds)", R / "server_stall2" / "runs.jsonl")])
+        ("server", "new default, repeat (8 builds)", R / "server_stall2" / "runs.jsonl"),
+        ("server", "new default, repeat 2 (10 builds)", R / "server_stall3" / "runs.jsonl")])
     fan_build = build_block(R / "server_fantomas" / "runs.jsonl", R / "server_fantomas" / "runs.jsonl", [
         ("baseline", "stock", None), ("flags", "stock + JIT flags", None), ("server_ccd0_nonconc", "server, new default", None),
         ("server_ccd0_nonconc_datas", "new default + DATAS", None), ("server", "new default, final check", R / "server_final_fantomas" / "runs.jsonl")])

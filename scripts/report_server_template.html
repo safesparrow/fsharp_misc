@@ -177,7 +177,7 @@ function sBuilds() {
   body.appendChild(buildSection(D.fcs_build, "FSharp.Compiler.Service.slnx (17 compilations, up to 9 at once)"));
   const n = document.createElement("div"); n.className = "prose";
   n.innerHTML = list(["Giving every worker all 11 cores as GC heaps is fast for one compilation but much slower when several compile at once.",
-    "Open issue: 3 of about 30 warm FCS-solution server builds took 53–55 s with normal or low CPU (no worker restart, no fallback); the new per-compilation timing in the build log will show the cause next time. 1 of 16 builds with the new default."]);
+    "Occasional slow builds (about 4 of 40 server builds, 53–55 s; none of 12 stock / stock + flags builds): the timing logs show MSBuild scheduling, not the compiler. FCS's two target frameworks were built one after the other on the same node (the netstandard2.0 compilation started 23 s after net11.0 instead of together), and everything that depends on FCS waited. The compilations themselves were faster than usual and the client added at most 0.05 s each. Whether the server makes this ordering more likely is not established."]);
   body.appendChild(n);
 }
 
