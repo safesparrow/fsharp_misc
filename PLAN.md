@@ -256,3 +256,8 @@ files {"data/report-data.js": "reports/phase3/data/report-data.js"}.
   Reports (local only, user asked not to publish): `reports/server/plan.html`, `reports/server/results.html`.
 - Result 2026-10-18: all server outputs match stock; warm server ~45-49 s vs stock 66 s vs flags 46 s; CPU -46% vs stock.
   Stock main still produces non-deterministic ref assemblies under contention (signature-hash-derived MVID/timestamp).
+- 2026-10-18 investigation (reports/server/investigation.html, scripts/fscbench.py + analyze_fscbench.py, sample_fsc.py):
+  per compilation the warm server is -25..30% wall / -35..45% CPU vs stock+flags; worker defaults now
+  TC_CallCountingDelayMs=0 (PGO kept) + gcConcurrent=0 (repos/server 608cd827f). Fantomas build 19.4 s vs flags 25.3 s;
+  FCS slnx ~38-40 s vs 45.7 s. Open: occasional ~55 s slow server builds (3 of ~22), cause unknown.
+  Harness caveat: bench.py's rewrite_rsp put -o and --refout on the same file name (fixed in fscbench.py only).
