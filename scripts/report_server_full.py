@@ -181,7 +181,7 @@ def main():
         ["Reduce compiler allocations", "FCS allocates ~33 GB per compilation; GC 31–39% of its CPU", "large", "biggest remaining lever"],
     ]
     data = dict(
-        meta=dict(title="F# compiler server", commit=commit, hardware=[[k, str(v)] for k, v in hw.items() if isinstance(v, (str, int, float))][:8],
+        meta=dict(title="F# compiler server", commit=commit, hardware=hw.get("hardware", []),
                   configs=[{"id": "flags"}], ref_config="flags", B=B),
         metrics=[{"key": "wall_s", "digits": 2, "unit": "s"}, {"key": "cpu_s", "digits": 1, "unit": "s"}],
         projects=PROJ, short=SHORT, percomp=percomp, totals=totals, abs=abs_, variants=variants, cold=cold, warm=warm,
