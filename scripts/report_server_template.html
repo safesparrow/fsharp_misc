@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>F# Compiler Server</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/*@STYLE*/
+</style>
+<style>
+/* <details> sections, as in the JIT PR report */
+nav.toc .ext button { align-self: flex-start; }
+main.wrap { max-width: none; margin: 0; }
+details.sec { border-top: 1px solid var(--grid); padding-top: 14px; scroll-margin-top: 12px; }
+details.sec > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 10px; }
+details.sec > summary::-webkit-details-marker { display: none; }
+details.sec > summary::before { content: "▸"; color: var(--muted); font-size: .9rem; transition: transform .15s; display: inline-block; width: 1em; }
+details.sec[open] > summary::before { transform: rotate(90deg); }
+details.sec > summary .hint { color: var(--muted); font-size: .8rem; font-weight: 400; }
+details.sec[open] > summary .hint { display: none; }
+details.sec > .body { display: flex; flex-direction: column; gap: 14px; padding: 14px 0 6px 1.6em; min-width: 0; }
+details.sub > summary { cursor: pointer; color: var(--ink2); font-weight: 500; }
+details.sub > .prose { margin-top: 8px; }
+@media (max-width: 900px) { details.sec > .body { padding-left: 0; } }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="toc" aria-label="Sections">
+    <div class="eyebrow">Contents</div>
+    <ol id="toc"></ol>
+    <div class="ext">
+      <span><button type="button" class="link" id="openAll">expand all</button><button type="button" class="link" id="closeAll">collapse all</button></span>
+      <a href="plan.html">Design and plan</a>
+      <a href="investigation.html">Investigation notes</a>
+      <a href="results.html">First whole-build results</a>
+    </div>
+  </nav>
+  <main class="wrap">
+    <header>
+      <div class="eyebrow">dotnet/fsharp · performance · compiler server</div>
+      <h1 id="title"></h1>
+      <div class="sub" id="subtitle">Loading data…</div>
+    </header>
+    <div id="sections"></div>
+  </main>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script src="data/report-data.js"></script>
+<script>
+"use strict";
+const D = window.REPORT_DATA;
+const $ = (id) => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+if (!D) {
+  $("subtitle").textContent = "No data: data/report-data.js is missing. Run scripts/report_server_full.py to generate it.";
+  throw new Error("REPORT_DATA missing");
+}
+
+//@SHARED_JS
+
+const list = (xs) => md(xs.map((s) => "- " + s).join("\n"));
+const sigCls = (x) => (x && x.sig ? (x.d < 0 ? "faster sig" : "slower sig") : "");
+const pctCell = (x) => x ? `<td class="num ${sigCls(x)}">${fmtP(x.d)}<br><span class="sub">${fmtCI(x)}</span></td>` : `<td class="num">–</td>`;
+const s1 = (v) => `${v.toFixed(1)} s`, s2 = (v) => `${v.toFixed(2)} s`;
+const SUB = () => `${(Object.fromEntries(D.meta.hardware).Chip || "11-core Apple M-series")} · .NET 11 RC1 · median, 95% bootstrap CI`;
+const SECTIONS = [
+  ["summary", "Summary", true], ["findings", "Findings, ranked by benefit for the effort", true],
+  ["percomp", "Per compilation: server vs stock + JIT flags", true], ["variants", "Worker settings tried", true],
+  ["cold", "New (cold) workers", true], ["phases", "Where the time goes: compiler phases", true],
+  ["profile", "Where the time goes: CPU profile of FCS", true], ["builds", "Whole builds", true],
+  ["correct", "Correctness", false], ["method", "Method and setup", false],
+];
+
+function skeleton() {
+  $("title").textContent = "F# compiler server: performance";
+  $("subtitle").innerHTML = `Server branch <code>${esc(D.meta.commit)}</code> · ${D.projects.length} compilations replayed, 2 solutions built · data: <a href="data/report-data.js">data/report-data.js</a>`;
+  $("toc").innerHTML = SECTIONS.map(([id, t]) => `<li><a href="#${id}" data-id="${id}">${esc(t)}</a></li>`).join("");
+  $("sections").innerHTML = SECTIONS.map(([id, t, open], i) =>
+    `<details class="sec" id="${id}"${open ? " open" : ""}><summary><h2>${i + 1}. ${esc(t)}</h2><span class="hint">click to expand</span></summary><div class="body" id="body-${id}"></div></details>`).join("");
+}
+
+function sSummary() {
+  const T = D.totals, fan = D.fan_build.find((b) => b.cfg === "server_ccd0_nonconc"), fcs = D.fcs_build.find((b) => b.label.startsWith("new default, repeat"));
+  const tile = (label, x, abs) => `<div class="tile"><div class="k">${esc(label)}</div><div class="v ${sigCls(x)}">${fmtP(x.d)}</div><div class="ci">CI ${fmtCI(x)}</div><div class="ci">${abs}</div></div>`;
+  const sum = (who, k) => D.projects.reduce((a, p) => a + D.abs[who][p][k], 0);
+  $("body-summary").innerHTML = `<div class="tiles">` +
+    tile(`Wall, ${D.projects.length} compilations vs flags`, T.wall_s.best, `${s1(sum("flags", "wall_s"))} → ${s1(sum("best", "wall_s"))}`) +
+    tile(`CPU, ${D.projects.length} compilations vs flags`, T.cpu_s.best, `${s1(sum("flags", "cpu_s"))} → ${s1(sum("best", "cpu_s"))}`) +
+    tile("Fantomas build vs flags", fan.wall, `${s1(D.fan_build.find((b) => b.cfg === "flags").walls.reduce((a, b) => a + b) / 3)} → ${s1(fan.walls.reduce((a, b) => a + b) / fan.walls.length)}`) +
+    tile("FCS solution build vs flags", fcs.wall, `${s1(D.fcs_build.find((b) => b.cfg === "flags").walls.reduce((a, b) => a + b) / 3)} → ${s1(fcs.walls.reduce((a, b) => a + b) / fcs.walls.length)}`) +
+    `</div><div class="prose">${list(D.summary)}</div>`;
+}
+
+function sFindings() {
+  $("body-findings").innerHTML = `<div class="tablebox"><table><tr><th>#</th><th>Change</th><th>Measured effect</th><th>Complexity</th><th>Verdict</th></tr>` +
+    D.findings.map((f, i) => `<tr><td class="num">${i + 1}</td><td><b>${esc(f[0])}</b></td><td>${esc(f[1])}</td><td>${esc(f[2])}</td><td>${esc(f[3])}</td></tr>`).join("") + `</table></div>`;
+}
+
+function sPercomp() {
+  const body = $("body-percomp");
+  body.innerHTML = `<div class="fig" id="figPC"></div><div class="fig" id="figPCbars"></div><div class="tablebox"><table id="pcTable"></table></div>
+    <div class="prose"><p class="sub">Each compilation is replayed from the response file captured in a real build; the server configs send it to a warm
+    worker over its socket, exactly as the Fsc task does. 1 warm-up round, then 5 measured rounds; "new default" = workers with
+    CallCountingDelayMs=0 and non-concurrent GC; "default" = the first version (5 heaps, concurrent GC).</p></div>`;
+  const series = ["Wall time", "CPU time"], keys = ["wall_s", "cpu_s"];
+  const rows = D.projects.map((p) => [D.short[p], keys.map((k) => D.percomp[p][k].best)]).concat([[`All ${D.projects.length} (sum of medians)`, keys.map((k) => D.totals[k].best)]]);
+  drawForest($("figPC"), rows, series, (s) => slot(series.indexOf(s)), "Warm compiler server (new default) vs stock fsc + JIT flags", SUB(),
+    "median(server) / median(stock + flags) − 1 (negative = faster / less CPU)",
+    (p, s) => { const k = keys[series.indexOf(s)]; const pr = D.projects.find((q) => D.short[q] === p); return pr ? `<br>flags ${s2(D.abs.flags[pr][k])} → server ${s2(D.abs.best[pr][k])}` : ""; });
+  const who = [["stock", "stock fsc"], ["flags", "stock + JIT flags"], ["default", "server, first version"], ["best", "server, new default"]];
+  stackedChart($("figPCbars"), "Wall time per compilation, stacked over the 5 projects", SUB(),
+    who.map(([w, l]) => [l, D.projects.map((p) => D.abs[w][p].wall_s)]), D.projects.map((p) => D.short[p]), "seconds (sum of per-compilation medians)", slot);
+  $("pcTable").innerHTML = `<tr><th>Compilation</th><th class="num">Stock</th><th class="num">Stock + flags</th><th class="num">Server</th><th class="num">Δ wall vs flags</th><th class="num">Δ CPU vs flags</th><th class="num">Δ wall vs stock</th></tr>` +
+    D.projects.map((p) => `<tr><td>${esc(D.short[p])}</td><td class="num">${s2(D.abs.stock[p].wall_s)}</td><td class="num">${s2(D.abs.flags[p].wall_s)}</td><td class="num">${s2(D.abs.best[p].wall_s)}</td>` +
+      pctCell(D.percomp[p].wall_s.best) + pctCell(D.percomp[p].cpu_s.best) + `<td class="num">${fmtP(D.abs.best[p].wall_s / D.abs.stock[p].wall_s - 1)}</td></tr>`).join("") +
+    `<tr><td><b>All ${D.projects.length}</b></td><td class="num">${s1(D.projects.reduce((a, p) => a + D.abs.stock[p].wall_s, 0))}</td><td class="num">${s1(D.projects.reduce((a, p) => a + D.abs.flags[p].wall_s, 0))}</td><td class="num">${s1(D.projects.reduce((a, p) => a + D.abs.best[p].wall_s, 0))}</td>` +
+    pctCell(D.totals.wall_s.best) + pctCell(D.totals.cpu_s.best) + `<td class="num">${fmtP(D.projects.reduce((a, p) => a + D.abs.best[p].wall_s, 0) / D.projects.reduce((a, p) => a + D.abs.stock[p].wall_s, 0) - 1)}</td></tr>`;
+}
+
+function sVariants() {
+  const body = $("body-variants");
+  body.innerHTML = `<div class="fig" id="figVar"></div><div class="tablebox"><table id="varTable"></table></div>
+    <div class="prose"><p class="sub">Each setting applies to the worker process only; reference = the first-version worker measured in the same batch.
+    Sums over the 5 compilations; "cold round" = the warm-up round, i.e. the first time a fresh worker compiles each project.</p></div>`;
+  const series = ["Wall time", "CPU time"];
+  drawForest($("figVar"), D.variants.map((v) => [v.label, [v.wall, v.cpu]]), series, (s) => slot(series.indexOf(s)),
+    "Worker settings vs the first-version worker (warm, 5 compilations summed)", SUB(), "change vs default worker (negative = better)");
+  $("varTable").innerHTML = `<tr><th>Worker setting</th><th class="num">Sum wall</th><th class="num">Δ wall</th><th class="num">Δ CPU</th><th class="num">Δ FCS wall</th><th class="num">Cold round</th><th class="num">Cold FCS</th></tr>` +
+    D.variants.map((v) => `<tr><td>${esc(v.label)}</td><td class="num">${s1(v.sum_wall)}</td>${pctCell(v.wall)}${pctCell(v.cpu)}${pctCell(v.fcs)}<td class="num">${s1(v.cold)} <span class="sub">(ref ${s1(v.cold_ref)})</span></td><td class="num">${s1(v.cold_fcs)}</td></tr>`).join("");
+}
+
+function sCold() {
+  $("body-cold").innerHTML = `<div class="fig" id="figCold"></div><div class="fig" id="figWarm"></div>
+    <div class="prose"><p>A worker that has never run the compiler is as slow as a stock process on its first big compilation, because tiering waits
+    100 ms before counting calls. With <code>CallCountingDelayMs=0</code> (Tiered PGO kept) a new worker tiers up about as fast as a JIT-flagged process,
+    without the steady-state cost of turning PGO off.</p></div>`;
+  const projs = D.projects.map((p) => D.short[p]);
+  stackedChart($("figCold"), "First compilation of each project in a fresh process / worker", SUB(), D.cold, projs, "seconds (warm-up round)", slot);
+  stackedChart($("figWarm"), "Same compilations once warm (median of 5)", SUB(), D.warm, projs, "seconds", slot);
+}
+
+function sPhases() {
+  $("body-phases").innerHTML = `<div class="fig" id="figPh"></div><div class="prose"><p class="sub">From the compiler's own <code>--times</code> table
+    (top-level phases), summed over the 5 compilations. The worker is faster in every phase; imports and parsing nearly disappear.</p></div>`;
+  stackedChart($("figPh"), "Compiler phases (--times), summed over 5 compilations", SUB(), D.phases, D.phase_names, "seconds (sum of medians)", slot);
+}
+
+function sProfile() {
+  $("body-profile").innerHTML = `<div class="fig" id="figProf"></div><div class="prose"><p>Native sampling (macOS <code>sample</code>, 1 ms,
+    every thread) of one FCS compilation; self samples of busy threads grouped by what runs. GC is a third of the CPU and the JIT only 2–3%,
+    so for this largest project the server can remove little beyond startup: reducing the compiler's allocations (~33 GB per FCS compilation)
+    is the lever there. Sampling slows the compilation, so read the shares, not absolute times.</p></div>`;
+  stackedChart($("figProf"), "Busy CPU samples of an FCS compilation, by what runs", "share of busy samples, %", D.profile, D.profile_segs, "% of busy samples", slot);
+}
+
+function buildSection(arr, title) {
+  const box = document.createElement("div");
+  box.innerHTML = `<h3>${esc(title)}</h3><div class="fig"></div><div class="tablebox"><table></table></div>`;
+  const series = ["Wall time", "CPU time"];
+  drawForest(box.querySelector(".fig"), arr.filter((b) => b.wall).map((b) => [b.label, [b.wall, b.cpu]]), series, (s) => slot(series.indexOf(s)),
+    `${title}: change vs stock + JIT flags`, SUB(), "median(config) / median(stock + flags) − 1");
+  box.querySelector("table").innerHTML = `<tr><th>Config</th><th class="num">Warm-up (cold workers)</th><th class="num">Measured builds</th><th class="num">Mean</th><th class="num">Δ wall</th><th class="num">Δ CPU</th><th class="num">Workers</th><th class="num">Worker RSS</th></tr>` +
+    arr.map((b) => `<tr><td>${esc(b.label)}</td><td class="num">${s1(b.warmup)}</td><td style="text-align:right">${b.walls.map((w) => w.toFixed(1)).join(" · ")}</td><td class="num"><b>${s1(b.walls.reduce((a, c) => a + c) / b.walls.length)}</b></td>${pctCell(b.wall)}${pctCell(b.cpu)}<td class="num">${b.workers}</td><td class="num">${b.rss ? (b.rss / 1024).toFixed(1) + " GB" : "–"}</td></tr>`).join("");
+  return box;
+}
+function sBuilds() {
+  const body = $("body-builds");
+  body.innerHTML = `<div class="prose"><p><code>dotnet build -c Release --no-restore --no-incremental</code>, MSBuild node reuse off, 1 warm-up and 3 measured builds per config
+    (8 for the repeat). Worker settings go to the workers only. CPU = build process tree + live workers. Fantomas is built with <code>-p:LangVersion=11</code>
+    in every config (this repo's main targets no longer set it for preview SDKs, and Fantomas.Tests needs it).</p></div>`;
+  body.appendChild(buildSection(D.fantomas = D.fan_build, "Fantomas (fantomas.slnx)"));
+  body.appendChild(buildSection(D.fcs_build, "FSharp.Compiler.Service.slnx (17 compilations, up to 9 at once)"));
+  const n = document.createElement("div"); n.className = "prose";
+  n.innerHTML = list(["Giving every worker all 11 cores as GC heaps is fast for one compilation but much slower when several compile at once.",
+    "Open issue: 3 of about 30 warm FCS-solution server builds took 53–55 s with normal or low CPU (no worker restart, no fallback); the new per-compilation timing in the build log will show the cause next time. 1 of 16 builds with the new default."]);
+  body.appendChild(n);
+}
+
+function sCorrect() {
+  $("body-correct").innerHTML = `<div class="prose">${list([
+    "Every per-compilation run hashed the main assembly (with embedded PDB) and the reference assembly: all server configurations produced exactly the stock output.",
+    "Every whole build hashed the outputs of all 17 compilations: each file matched a hash that some stock build also produced.",
+    "Stock `main` is itself not deterministic for reference assemblies under CPU contention (MVID and timestamp derive from a signature hash that varies with thread timing), so whole-build comparisons accept any stock variant.",
+    "Workers restore the compiler's process-wide state (id counters, file index table, caches, option flags) before each compilation; type providers and other extension assemblies retire the worker."])}</div>`;
+}
+
+function sMethod() {
+  const kv = (xs) => xs.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
+  $("body-method").innerHTML = `<div class="cols"><div><h3 style="margin-bottom:8px">Hardware</h3><dl class="kv">${kv(D.meta.hardware)}</dl></div>
+    <div class="prose"><h3>Method</h3>${list([
+      "Compiler: dotnet/fsharp main @ 99406265 plus the server branch, ReadyToRun layouts like the SDK's (`layouts/baseline` for stock, `layouts/server`).",
+      "Per compilation: `scripts/fscbench.py` replays captured response files; process configs run `dotnet fsc.dll`, server configs talk to a worker socket.",
+      "Changes: median ratio with a 95% percentile bootstrap CI (" + D.meta.B + " resamples), both groups resampled; sums bootstrap every project.",
+      "Whole builds: `scripts/serverbench.py`; profiles: `scripts/sample_fsc.py`; this page: `scripts/report_server_full.py`."])}</div></div>`;
+}
+
+function openTarget(id, scroll) {
+  const el = id && document.getElementById(id);
+  if (!el) return;
+  for (let d = el.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) d.open = true;
+  if (scroll) el.scrollIntoView({ block: "start" });
+  markCurrent(id);
+}
+function markCurrent(id) { for (const a of document.querySelectorAll("nav.toc a[data-id]")) a.classList.toggle("current", a.dataset.id === id); }
+function wireNav() {
+  for (const a of document.querySelectorAll('a[href^="#"]')) a.addEventListener("click", () => openTarget(a.getAttribute("href").slice(1), false));
+  addEventListener("hashchange", () => openTarget(location.hash.slice(1), true));
+  $("openAll").onclick = () => document.querySelectorAll("details").forEach((d) => (d.open = true));
+  $("closeAll").onclick = () => document.querySelectorAll("details.sec").forEach((d) => (d.open = false));
+  const io = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) markCurrent(e.target.id); }, { rootMargin: "0px 0px -70% 0px" });
+  document.querySelectorAll("details.sec").forEach((d) => io.observe(d));
+  document.querySelectorAll("details.sec").forEach((d) => d.addEventListener("toggle", () => { if (d.open && DRAW[d.id]) DRAW[d.id](); }));
+}
+const DRAW = { summary: sSummary, findings: sFindings, percomp: sPercomp, variants: sVariants, cold: sCold, phases: sPhases,
+  profile: sProfile, builds: sBuilds, correct: sCorrect, method: sMethod };
+function renderAll() { for (const f of Object.values(DRAW)) f(); }
+skeleton(); renderAll(); wireNav();
+if (location.hash) openTarget(location.hash.slice(1), true);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+</script>
+</body>
+</html>

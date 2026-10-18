@@ -1,0 +1,18 @@
+{
+ "argv": [
+  "scripts/serverbench.py",
+  "--configs",
+  "server",
+  "--runs",
+  "8",
+  "--warmup",
+  "1",
+  "--out",
+  "results/server_stall2"
+ ],
+ "start": "2026-10-18T12:31:01+0100",
+ "commit": "99406265c88090c50e575afe8474f0979aa6f815",
+ "server_commit": "65fb79eecd052d8301bb41c76a254b9f6b14cfd1",
+ "ncpu": 11,
+ "outputs": 61
+}

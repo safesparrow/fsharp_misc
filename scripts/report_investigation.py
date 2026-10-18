@@ -121,6 +121,7 @@ def main():
     t_fan = build_table(ROOT / "results" / "server_fantomas" / "runs.jsonl")
     t_fin = (build_table(ROOT / "results" / "server_final" / "runs.jsonl").replace("<code>server</code>", "<code>server</code> FCS slnx")
              + build_table(ROOT / "results" / "server_stall" / "runs.jsonl").replace("<code>server</code>", "<code>server</code> FCS slnx, repeat")
+             + build_table(ROOT / "results" / "server_stall2" / "runs.jsonl").replace("<code>server</code>", "<code>server</code> FCS slnx, repeat 2")
              + build_table(ROOT / "results" / "server_final_fantomas" / "runs.jsonl").replace("<code>server</code>", "<code>server</code> Fantomas"))
 
     # Whole builds (legacy single table kept for reference)
@@ -262,7 +263,9 @@ the unexplained slow builds (55.3 s); the repeat's first build started with 2.5 
 
 <h2>Not done yet, worth trying next</h2>
 <ul>
-<li><b>Find the occasional slow build</b>: every log now has its own name; take per-compilation timing from the binlog of the next slow one.</li>
+<li><b>Find the occasional slow build</b>: the Fsc task now logs client and worker time per compilation and every binlog has its own
+name, so the next slow build will show where the time went. In 8 instrumented builds none was slow, and the client's overhead per
+compilation (client time minus worker compilation time) was at most 0.09 s.</li>
 <li><b>Pre-warm new workers</b>: start one spare worker ahead of need, or let a new worker compile a small embedded sample before its
 first request. Fast tier-up already removed most of the cold cost, so this is worth it only if cold builds still matter.</li>
 <li><b>Allocation profile of FCS</b> (33 GB per compilation): the largest remaining cost for big projects, with or without the server.</li>

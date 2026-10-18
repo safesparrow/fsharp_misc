@@ -80,7 +80,7 @@ main{max-width:1240px;margin:0 auto} a{color:var(--accent)}</style></head><body>
   <li><b>Whole builds with the new defaults:</b>
     <ul>
       <li>Fantomas: 19.4 s, against 25.3 s for stock + flags (−23%) and 30.2 s for stock (−36%). CPU −44%. It repeats to within about 0.3 s.</li>
-      <li>FSharp.Compiler.Service.slnx: 38–40 s against 45.7 s (−13 to −16%), CPU −29%. This solution is dominated by the FCS compilation, where the JIT is only 2–3% of CPU and GC is 31–39%.</li>
+      <li>FSharp.Compiler.Service.slnx: 39.0 s mean over 8 builds (36.3–41.4 s), against 45.7 s (−15%), CPU about −35%. This solution is dominated by the FCS compilation, where the JIT is only 2–3% of CPU and GC is 31–39%.</li>
     </ul></li>
   <li><b>Not worth it:</b>
     <ul>
@@ -92,10 +92,11 @@ main{max-width:1240px;margin:0 auto} a{color:var(--accent)}</style></head><body>
   <li><b>Outputs:</b> every server compilation and build produced the same assemblies as stock (main and reference assemblies, compared by hash).</li>
   <li><b>Open issue: occasional slow builds.</b>
     <ul>
-      <li>3 of about 22 warm FCS-solution server builds took 53–55 s instead of about 38–45 s, with normal or low CPU. No worker restarted and no compilation fell back to a stock process.</li>
-      <li>A repeat of 5 builds with the new defaults showed no such outlier: 38.0, 40.8, 37.5 and 37.5 s, plus 45.6 s for a build that started with 2.5 cores of outside load.</li>
+      <li>3 of about 30 warm FCS-solution server builds took 53–55 s instead of about 37–45 s, with normal or low CPU. No worker restarted and no compilation fell back to a stock process.</li>
+      <li>With the new defaults, that's 1 slow build out of 16.</li>
+      <li>Two repeats showed no outlier. The 8 builds of the second repeat were instrumented: the client adds at most 0.09 s per compilation beyond the worker's compile time.</li>
       <li>The 9 stock + flags builds varied by only about 1 s.</li>
-      <li>Not explained yet. The next step is per-compilation timing in the binlog for a slow build (the earlier slow builds' logs were overwritten).</li>
+      <li>Not explained yet. The next slow build will show where the time goes; the logging for that is in place.</li>
     </ul></li>
 </ul>
 
@@ -130,13 +131,15 @@ configs run one after another. Server configs include worker affinity; their wor
 default preview SDKs to F# 11 (the SDK's do), and Fantomas.Tests does not compile with main's newer default language version.</p>
 <div class=tw><table><tr><th>config</th><th>warm-up (cold workers) s</th><th>measured builds s</th><th>mean s</th><th>vs flags</th><th>CPU s</th><th>CPU vs flags</th><th>workers</th><th>worker RSS MB</th></tr><tr><td><code>baseline</code></td><td class=n>29.2</td><td class=n>29.2 · 31.7 · 29.7</td><td class=n><b>30.2</b></td><td class=n>1.20×</td><td class=n>95</td><td class=n>1.01×</td><td class=n>0</td><td class=n>0</td></tr><tr><td><code>flags</code></td><td class=n>25.2</td><td class=n>25.3 · 25.5 · 25.0</td><td class=n><b>25.3</b></td><td class=n>1.00×</td><td class=n>94</td><td class=n>1.00×</td><td class=n>0</td><td class=n>0</td></tr><tr><td><code>server_ccd0_nonconc</code></td><td class=n>22.5</td><td class=n>19.7 · 19.7 · 19.7</td><td class=n><b>19.7</b></td><td class=n>0.78×</td><td class=n>53</td><td class=n>0.56×</td><td class=n>3</td><td class=n>4381</td></tr><tr><td><code>server_ccd0_nonconc_datas</code></td><td class=n>22.2</td><td class=n>20.2 · 19.9 · 20.3</td><td class=n><b>20.1</b></td><td class=n>0.80×</td><td class=n>61</td><td class=n>0.65×</td><td class=n>3</td><td class=n>2367</td></tr></table></div>
 <h3>Final: the branch's new defaults, no overrides</h3>
-<div class=tw><table><tr><th>config</th><th>warm-up (cold workers) s</th><th>measured builds s</th><th>mean s</th><th>vs flags</th><th>CPU s</th><th>CPU vs flags</th><th>workers</th><th>worker RSS MB</th></tr><tr><td><code>server</code> FCS slnx</td><td class=n>48.3</td><td class=n>44.7 · 55.3 · 41.9</td><td class=n><b>47.3</b></td><td class=n>–</td><td class=n>239</td><td class=n>–</td><td class=n>9</td><td class=n>4290</td></tr><tr><td><code>server</code> FCS slnx, repeat</td><td class=n>46.2</td><td class=n>45.6 · 38.0 · 40.8 · 37.5 · 37.5</td><td class=n><b>39.9</b></td><td class=n>–</td><td class=n>239</td><td class=n>–</td><td class=n>9</td><td class=n>4591</td></tr><tr><td><code>server</code> Fantomas</td><td class=n>21.7</td><td class=n>19.8 · 19.4 · 19.0</td><td class=n><b>19.4</b></td><td class=n>–</td><td class=n>52</td><td class=n>–</td><td class=n>3</td><td class=n>3702</td></tr></table></div>
+<div class=tw><table><tr><th>config</th><th>warm-up (cold workers) s</th><th>measured builds s</th><th>mean s</th><th>vs flags</th><th>CPU s</th><th>CPU vs flags</th><th>workers</th><th>worker RSS MB</th></tr><tr><td><code>server</code> FCS slnx</td><td class=n>48.3</td><td class=n>44.7 · 55.3 · 41.9</td><td class=n><b>47.3</b></td><td class=n>–</td><td class=n>239</td><td class=n>–</td><td class=n>9</td><td class=n>4290</td></tr><tr><td><code>server</code> FCS slnx, repeat</td><td class=n>46.2</td><td class=n>45.6 · 38.0 · 40.8 · 37.5 · 37.5</td><td class=n><b>39.9</b></td><td class=n>–</td><td class=n>239</td><td class=n>–</td><td class=n>9</td><td class=n>4591</td></tr><tr><td><code>server</code> FCS slnx, repeat 2</td><td class=n>43.9</td><td class=n>40.8 · 41.4 · 37.7 · 36.3 · 38.1 · 39.8 · 38.3 · 39.9</td><td class=n><b>39.0</b></td><td class=n>–</td><td class=n>228</td><td class=n>–</td><td class=n>8</td><td class=n>4707</td></tr><tr><td><code>server</code> Fantomas</td><td class=n>21.7</td><td class=n>19.8 · 19.4 · 19.0</td><td class=n><b>19.4</b></td><td class=n>–</td><td class=n>52</td><td class=n>–</td><td class=n>3</td><td class=n>3702</td></tr></table></div>
 <p>Stock + JIT flags for reference: 45.7 s (FCS slnx, table above) and 25.3 s (Fantomas). The first FCS run contains one of
 the unexplained slow builds (55.3 s); the repeat's first build started with 2.5 cores of outside load.</p>
 
 <h2>Not done yet, worth trying next</h2>
 <ul>
-<li><b>Find the occasional slow build</b>: every log now has its own name; take per-compilation timing from the binlog of the next slow one.</li>
+<li><b>Find the occasional slow build</b>: the Fsc task now logs client and worker time per compilation and every binlog has its own
+name, so the next slow build will show where the time went. In 8 instrumented builds none was slow, and the client's overhead per
+compilation (client time minus worker compilation time) was at most 0.09 s.</li>
 <li><b>Pre-warm new workers</b>: start one spare worker ahead of need, or let a new worker compile a small embedded sample before its
 first request. Fast tier-up already removed most of the cold cost, so this is worth it only if cold builds still matter.</li>
 <li><b>Allocation profile of FCS</b> (33 GB per compilation): the largest remaining cost for big projects, with or without the server.</li>
